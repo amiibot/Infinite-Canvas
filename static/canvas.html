@@ -85,6 +85,7 @@
         .world { position:absolute; left:0; top:0; width:6000px; height:4000px; transform-origin:0 0; }
         .links { position:absolute; inset:0; width:6000px; height:4000px; overflow:visible; pointer-events:none; z-index:1; }
         .link { stroke:var(--faint); stroke-width:2.5; fill:none; opacity:.82; pointer-events:none; }
+        .link.audio-link { stroke:#7c3aed; stroke-dasharray:4 3; opacity:.72; }
         .link.temp { stroke:var(--strong); stroke-dasharray:6 6; }
         .link.knife-trail { stroke:#ef4444; stroke-width:2.4; stroke-dasharray:7 6; opacity:.88; filter:drop-shadow(0 0 6px rgba(239,68,68,.35)); }
         .link-hit { stroke:transparent; stroke-width:18; fill:none; pointer-events:stroke; }
@@ -184,6 +185,11 @@
         .asset-badge { display:inline-block; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:600; background:var(--accent, #6366f1); color:#fff; margin-right:4px; vertical-align:middle; }
         .asset-node .node-body { min-height:0; }
         .asset-node img { display:block; width:100%; max-height:200px; object-fit:contain; border-radius:8px; background:var(--bg-secondary, #f8fafc); }
+        .asset-audio-btn { position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%; border:none; display:flex; align-items:center; justify-content:center; font-size:11px; cursor:pointer; z-index:4; transition:background .15s, opacity .15s; }
+        .asset-audio-btn.has-audio { background:rgba(255,255,255,.92); color:#334155; }
+        .asset-audio-btn.has-audio:hover { background:#fff; }
+        .asset-audio-btn.has-audio.playing { background:#6366f1; color:#fff; }
+        .asset-audio-btn.no-audio { background:rgba(0,0,0,.25); color:rgba(255,255,255,.6); cursor:default; opacity:.7; font-size:10px; }
         .blank-image { height:190px; border:1px dashed #cbd5e1; border-radius:16px; background:#f8fafc; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:#94a3b8; cursor:pointer; transition:all .2s var(--ease); }
         .node.sized .blank-image { height:100%; min-height:72px; }
         .blank-image:hover,.blank-image.drag-over { border-color:#111827; color:#111827; background:#fff; }
@@ -315,6 +321,8 @@
         .port:hover::after { transform:scale(1.25); }
         .port.in { left:-29px; cursor:crosshair; }
         .port.out { right:-15px; }
+        .port.out-audio { right:-15px; top:auto; bottom:18%; transform:translateY(50%); }
+        .port.out-audio::after { background:#7c3aed; box-shadow:0 0 0 1px #a78bfa; }
         .node > .port { top:50%; }
         .group-node,.promptGroup-node { min-width:260px; background:rgba(255,255,255,.96); border:1px solid #e8edf3; box-shadow:0 16px 42px rgba(15,23,42,.08); z-index:0; }
         .group-node .node-head,.promptGroup-node .node-head { background:#fff; border-bottom:1px solid #f1f5f9; }
@@ -2355,7 +2363,7 @@
                     const items = [];
                     (proj.characters||[]).forEach(c => {
                         const url = getAssetThumb(c);
-                        items.push({assetType:'character', assetId:c.id, name:c.name, url, kind:'角色', projectId:pid});
+                        items.push({assetType:'character', assetId:c.id, name:c.name, url, kind:'角色', projectId:pid, voiceRefUrl:c.voice_ref_url||''});
                     });
                     (proj.scenes||[]).forEach(s => {
                         const url = getAssetThumb(s);
@@ -2399,9 +2407,34 @@
             const sel = variants.find(v => v.selected) || variants[0];
             return sel?.url || '';
         }
+
+        let _canvasAudioEl = null;
+        let _canvasAudioBtn = null;
+        function bindAssetAudioBtn(btn){
+            btn.addEventListener('mousedown', e => e.stopPropagation());
+            btn.addEventListener('click', e => {
+                e.stopPropagation();
+                const url = btn.dataset.voiceUrl;
+                if(!url) return;
+                if(_canvasAudioBtn === btn && _canvasAudioEl && !_canvasAudioEl.paused){
+                    _canvasAudioEl.pause();
+                    btn.textContent = '▶';
+                    btn.classList.remove('playing');
+                    return;
+                }
+                if(_canvasAudioEl){ _canvasAudioEl.pause(); }
+                if(_canvasAudioBtn && _canvasAudioBtn !== btn){ _canvasAudioBtn.textContent = '▶'; _canvasAudioBtn.classList.remove('playing'); }
+                _canvasAudioEl = new Audio(url);
+                _canvasAudioBtn = btn;
+                btn.textContent = '⏸';
+                btn.classList.add('playing');
+                _canvasAudioEl.play().catch(() => { btn.textContent = '▶'; btn.classList.remove('playing'); });
+                _canvasAudioEl.onended = () => { btn.textContent = '▶'; btn.classList.remove('playing'); };
+            });
+        }
         function addAssetNode(data){
             const p = defaultPoint(0, 0);
-            addNode({id:uid('asset'), type:'asset', x:p.x, y:p.y, projectId:data.projectId, assetType:data.assetType, assetId:data.assetId, url:data.url, name:data.name, assetKind:data.kind});
+            addNode({id:uid('asset'), type:'asset', x:p.x, y:p.y, projectId:data.projectId, assetType:data.assetType, assetId:data.assetId, url:data.url, name:data.name, assetKind:data.kind, voiceRefUrl:data.voiceRefUrl||''});
         }
 
         function addImageNode(point){
@@ -4350,8 +4383,13 @@
             }
             if(node.type === 'asset') {
                 const badge = escapeHtml(node.assetKind || 'asset');
+                const audioBtnHtml = node.assetType === 'character'
+                    ? (node.voiceRefUrl
+                        ? `<button class="asset-audio-btn has-audio" data-voice-url="${escapeAttr(node.voiceRefUrl)}" title="播放音频">▶</button>`
+                        : `<button class="asset-audio-btn no-audio" title="无音频">🔇</button>`)
+                    : '';
                 if(node.url) {
-                    body.innerHTML = `<div class="image-preview-wrap"><img src="${escapeAttr(node.url)}" draggable="false" onerror="this.parentElement.innerHTML='<div class=\\'blank-image\\'><i data-lucide=\\'image-off\\' class=\\'w-7 h-7\\'></i></div>'"></div><div class="image-caption text-[11px] text-gray-400 truncate"><span class="asset-badge">${badge}</span> ${escapeHtml(node.name || '')}</div>`;
+                    body.innerHTML = `<div class="image-preview-wrap" style="position:relative">${audioBtnHtml}<img src="${escapeAttr(node.url)}" draggable="false" onerror="this.parentElement.innerHTML='<div class=\\'blank-image\\'><i data-lucide=\\'image-off\\' class=\\'w-7 h-7\\'></i></div>'"></div><div class="image-caption text-[11px] text-gray-400 truncate"><span class="asset-badge">${badge}</span> ${escapeHtml(node.name || '')}</div>`;
                     const loadedImg = body.querySelector('img');
                     if(loadedImg && loadedImg.complete && loadedImg.naturalHeight > 0){
                         requestAnimationFrame(refreshGeometry);
@@ -4359,8 +4397,10 @@
                         loadedImg.onload = () => refreshGeometryAfterLayout();
                     }
                 } else {
-                    body.innerHTML = `<div class="blank-image"><i data-lucide="image-off" class="w-7 h-7"></i><div class="text-[11px] font-bold">${escapeHtml(node.name || 'asset')}</div></div>`;
+                    body.innerHTML = `<div class="blank-image" style="position:relative">${audioBtnHtml}<i data-lucide="image-off" class="w-7 h-7"></i><div class="text-[11px] font-bold">${escapeHtml(node.name || 'asset')}</div></div>`;
                 }
+                const audioBtn = body.querySelector('.asset-audio-btn.has-audio');
+                if(audioBtn) bindAssetAudioBtn(audioBtn);
             }
             if(node.type === 'prompt') {
                 body.innerHTML = `<div class="prompt-editor"><textarea placeholder="${tr('canvas.promptPlaceholder')}">${escapeHtml(node.text || '')}</textarea>${promptCounterHtml(node.text || '')}</div>`;
@@ -4417,12 +4457,15 @@
             const canOutput = ['image','prompt','loop','group','promptGroup','generator','comfy','llm','msgen','video','asset'].includes(node.type);
             if(canInput) el.insertAdjacentHTML('beforeend', `<div class="port in" title="${tr('canvas.connectHere')}"></div>`);
             if(canOutput) el.insertAdjacentHTML('beforeend', `<div class="port out" title="${tr('canvas.dragConnect')}"></div>`);
+            if(node.type === 'asset' && node.voiceRefUrl) el.insertAdjacentHTML('beforeend', `<div class="port out-audio" title="${tr('canvas.dragConnect')} (Audio)"></div>`);
             el.insertAdjacentHTML('beforeend', `<div class="resize-handle" title="${tr('canvas.resize')}"></div>`);
             el.querySelector('.node-head').onmousedown = e => { if(e.button === 0) startNodeDrag(e, node); };
             el.querySelector('.resize-handle').onmousedown = e => { if(e.button === 0 && !e.shiftKey) startNodeResize(e, node); };
             el.ondragstart = e => { e.preventDefault(); e.stopPropagation(); };
             const out = el.querySelector('.port.out');
             if(out) out.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'out'); };
+            const outAudio = el.querySelector('.port.out-audio');
+            if(outAudio) outAudio.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'out-audio'); };
             const inp = el.querySelector('.port.in');
             if(inp) inp.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'in'); };
             return el;
@@ -7770,6 +7813,7 @@
             originKind = originKind || 'out';
             const src = portPoint(originId, originKind);
             const source = nodes.find(n => n.id === originId);
+            const fromPort = originKind === 'out-audio' ? 'audio' : undefined;
             tempLink = {from:originId, originKind, x1:src.x, y1:src.y, x2:src.x, y2:src.y};
             window.onmousemove = e2 => {
                 const p = screenToWorld(e2.clientX, e2.clientY);
@@ -7778,20 +7822,20 @@
                 renderLinks();
             };
             window.onmouseup = e2 => {
-                const targetKind = originKind === 'out' ? 'in' : 'out';
+                const targetKind = (originKind === 'out' || originKind === 'out-audio') ? 'in' : 'out';
                 const targetPort = nearestPort(e2.clientX, e2.clientY, targetKind);
                 const target = targetPort?.closest('.node');
                 if(target){
                     const targetId = target.dataset.id;
-                    const fromId = originKind === 'out' ? originId : targetId;
-                    const toId = originKind === 'out' ? targetId : originId;
+                    const fromId = (originKind === 'out' || originKind === 'out-audio') ? originId : targetId;
+                    const toId = (originKind === 'out' || originKind === 'out-audio') ? targetId : originId;
                     if(canConnect(fromId, toId)){
-                        if(!connections.some(c => c.from === fromId && c.to === toId)){ pushUndo(); connections.push({id:uid('c'), from:fromId, to:toId}); }
+                        if(!connections.some(c => c.from === fromId && c.to === toId && c.fromPort === fromPort)){ pushUndo(); connections.push({id:uid('c'), from:fromId, to:toId, fromPort:fromPort}); }
                         syncGeneratorInputs();
                         scheduleSave();
                         render();
                     }
-                } else if(originKind === 'out'){
+                } else if(originKind === 'out' || originKind === 'out-audio'){
                     if(source && CANVAS_GENERATOR_TYPES.includes(source.type)){
                         const p = screenToWorld(e2.clientX, e2.clientY);
                         pushUndo();
@@ -7988,14 +8032,16 @@
                 return screenToWorld(r.left + r.width / 2, r.top + r.height / 2);
             }
             const w = el.offsetWidth || n.w || 260, h = el.offsetHeight || n.h || 160;
+            if(kind === 'out-audio') return {x:n.x + w, y:n.y + h * 0.82};
             return kind === 'out' ? {x:n.x + w, y:n.y + h / 2} : {x:n.x, y:n.y + h / 2};
         }
         function renderLinks(){
             linksEl.innerHTML = '';
             linkControlsEl.innerHTML = '';
             connections.forEach(c => {
-                const a = portPoint(c.from, 'out'), b = portPoint(c.to, 'in');
-                linksEl.appendChild(pathEl(a.x, a.y, b.x, b.y, 'link'));
+                const outKind = c.fromPort === 'audio' ? 'out-audio' : 'out';
+                const a = portPoint(c.from, outKind), b = portPoint(c.to, 'in');
+                linksEl.appendChild(pathEl(a.x, a.y, b.x, b.y, c.fromPort === 'audio' ? 'link audio-link' : 'link'));
                 const btn = linkDeleteButton(c, a, b);
                 linkControlsEl.appendChild(btn);
                 linksEl.appendChild(linkHitEl(a.x, a.y, b.x, b.y, c.id));
