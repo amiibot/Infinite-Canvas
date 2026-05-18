@@ -414,7 +414,7 @@
             transition: color .15s;
         }
         .tab-btn:hover { color: var(--text); }
-        .tab-btn.active { color: var(--text); border-bottom-color: #3b82f6; }
+        .tab-btn.active { color: var(--text); border-bottom-color: var(--accent, #3b82f6); }
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
         .library-frame {
@@ -437,11 +437,11 @@
 <body>
     <div class="page">
         <div class="tab-bar" id="mainTabBar" role="tablist">
-            <button class="tab-btn active" data-tab="workspace" role="tab" aria-selected="true" data-zh="我的工作区" data-en="My Workspace">我的工作区</button>
-            <button class="tab-btn" data-tab="library" role="tab" aria-selected="false" data-zh="资产库" data-en="Asset Library">资产库</button>
+            <button class="tab-btn active" id="tab-workspace" data-tab="workspace" role="tab" aria-selected="true" aria-controls="panel-workspace" tabindex="0" data-zh="我的工作区" data-en="My Workspace">我的工作区</button>
+            <button class="tab-btn" id="tab-library" data-tab="library" role="tab" aria-selected="false" aria-controls="panel-library" tabindex="-1" data-zh="资产库" data-en="Asset Library">资产库</button>
         </div>
 
-        <div class="tab-panel active" id="panel-workspace">
+        <div class="tab-panel active" id="panel-workspace" role="tabpanel" aria-labelledby="tab-workspace">
         <header class="topbar">
             <div class="title-wrap">
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -477,8 +477,8 @@
         </section>
         </div><!-- /panel-workspace -->
 
-        <div class="tab-panel" id="panel-library">
-            <iframe class="library-frame" src="/static/library.html" id="libraryFrame"></iframe>
+        <div class="tab-panel" id="panel-library" role="tabpanel" aria-labelledby="tab-library">
+            <iframe class="library-frame" src="/static/library.html" id="libraryFrame" onload="syncLibraryFrame()"></iframe>
         </div>
     </div>
 
@@ -521,24 +521,46 @@
     <script>
         // Tab switching
         const tabBar = document.getElementById('mainTabBar');
-        tabBar.addEventListener('click', (e) => {
-            const btn = e.target.closest('.tab-btn');
-            if (!btn) return;
+        const tabBtns = tabBar.querySelectorAll('.tab-btn');
+        function activateTab(btn) {
             const tab = btn.dataset.tab;
-            tabBar.querySelectorAll('.tab-btn').forEach(b => {
+            tabBtns.forEach(b => {
                 b.classList.remove('active');
                 b.setAttribute('aria-selected', 'false');
+                b.setAttribute('tabindex', '-1');
             });
             btn.classList.add('active');
             btn.setAttribute('aria-selected', 'true');
+            btn.setAttribute('tabindex', '0');
+            btn.focus();
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
             document.getElementById('panel-' + tab).classList.add('active');
             if (tab === 'library') {
-                const frame = document.getElementById('libraryFrame');
-                frame.contentWindow.postMessage({ type: 'studio-theme', theme: document.body.classList.contains('theme-dark') ? 'dark' : 'light' }, '*');
-                frame.contentWindow.postMessage({ type: 'studio-lang', lang: state.lang }, '*');
+                syncLibraryFrame();
             }
+        }
+        tabBar.addEventListener('click', (e) => {
+            const btn = e.target.closest('.tab-btn');
+            if (!btn) return;
+            activateTab(btn);
         });
+        tabBar.addEventListener('keydown', (e) => {
+            const tabs = [...tabBtns];
+            const idx = tabs.indexOf(document.activeElement);
+            if (idx < 0) return;
+            let next = -1;
+            if (e.key === 'ArrowRight') next = (idx + 1) % tabs.length;
+            else if (e.key === 'ArrowLeft') next = (idx - 1 + tabs.length) % tabs.length;
+            if (next >= 0) { e.preventDefault(); activateTab(tabs[next]); }
+        });
+
+        function syncLibraryFrame() {
+            const frame = document.getElementById('libraryFrame');
+            if (!frame || !frame.contentWindow) return;
+            const theme = document.body.classList.contains('theme-dark') ? 'dark' : 'light';
+            frame.contentWindow.postMessage({ type: 'studio-theme', theme }, '*');
+            frame.contentWindow.postMessage({ type: 'studio-lang', lang: state?.lang || 'zh' }, '*');
+        }
 
         const state = {
             lang: 'zh',
@@ -812,9 +834,11 @@
         window.addEventListener('message', event => {
             if (event.data?.type === 'studio-theme') {
                 document.body.classList.toggle('theme-dark', event.data.theme === 'dark');
+                syncLibraryFrame();
             }
             if (event.data?.type === 'studio-lang') {
                 applyLanguage(event.data.lang);
+                syncLibraryFrame();
             }
         });
 
