@@ -1688,16 +1688,12 @@
             document.getElementById('cwImgHeadshot').innerHTML = hsUrl ? `<img src="${escapeHtml(hsUrl)}" alt="${escapeHtml(asset.name)}">` : '<span style="font-size:48px;opacity:.3;">🖼️</span>';
             renderColVariantStrip(document.getElementById('cwVarHeadshot'), asset.headshot_variants || [], asset.headshot_selected_variant_id, 'character_headshot');
             document.getElementById('cwPromptHeadshot').value = asset.headshot_prompt || '';
-            // Conditional lock: TV/HS locked when no full body
+            // Lock overlay: only show when manually locked
             document.querySelectorAll('.cw-col').forEach(col => {
-                const type = col.dataset.cwType;
-                let showLock = false;
-                if ((type === 'character_three_view' || type === 'character_headshot') && !hasFullBody) showLock = true;
-                if (isLocked) showLock = true;
                 let overlay = col.querySelector('.cw-lock-overlay');
-                if (showLock) {
+                if (isLocked) {
                     if (!overlay) { overlay = document.createElement('div'); overlay.className = 'cw-lock-overlay'; col.style.position = 'relative'; col.appendChild(overlay); }
-                    overlay.innerHTML = isLocked ? tr('🔒 已锁定', '🔒 Locked') : tr('🔒 请先生成全身图', '🔒 Generate Full Body first');
+                    overlay.innerHTML = tr('🔒 已锁定', '🔒 Locked');
                 } else if (overlay) { overlay.remove(); }
             });
             // Manual lock button
