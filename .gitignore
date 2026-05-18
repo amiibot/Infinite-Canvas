@@ -1,3 +1,13 @@
 API/.env
 other/**/.env
 other/
+AGENTS.md
+.playwright*/
+.playwright-cli/
+.playwright-mcp/
+__pycache__/
+output/
+data/
+screenshot/
+docs/
+.codex_write_test
