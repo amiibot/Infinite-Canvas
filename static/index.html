@@ -501,7 +501,13 @@
             </div>
 
             <nav>
-                <div class="nav-item active" onclick="switchUI(this, 'zimage')">
+                <div class="nav-item" onclick="switchUI(this, 'library')">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                    </svg>
+                    <span class="nav-text" data-i18n="nav.library">资产库</span>
+                </div>
+                <div class="nav-item" onclick="switchUI(this, 'zimage')">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.587-1.587a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
                     </svg>
@@ -543,6 +549,12 @@
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                     </svg>
                     <span class="nav-text" data-i18n="nav.gpt">GPT 对话</span>
+                </div>
+                <div class="nav-item active" onclick="switchUI(this, 'workspace')">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"></path>
+                    </svg>
+                    <span class="nav-text" data-i18n="nav.workspace">导演工坊</span>
                 </div>
                 <div class="nav-item" onclick="switchUI(this, 'canvas')">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -838,6 +850,52 @@
                 syncThemeToFrame(f);
                 syncLanguageToFrame(f);
             });
+        });
+
+        window.addEventListener('message', (event) => {
+            if (event.origin !== location.origin) return;
+            if (event.data?.type === 'navigate') {
+                const { page, id } = event.data;
+                if (page === 'project') {
+                    const frame = document.getElementById('frame-project');
+                    const url = `/static/project.html?id=${encodeURIComponent(id)}`;
+                    if (frame.src !== location.origin + url) {
+                        frame.src = url;
+                    }
+                    document.querySelectorAll('iframe').forEach(f => f.classList.remove('active'));
+                    frame.classList.add('active');
+                    document.querySelectorAll('.nav-item,.side-pill').forEach(n => n.classList.remove('active'));
+                    syncThemeToFrame(frame);
+                    syncLanguageToFrame(frame);
+                    return;
+                }
+                if (page === 'workspace') {
+                    document.querySelectorAll('iframe').forEach(f => f.classList.remove('active'));
+                    const frame = document.getElementById('frame-workspace');
+                    frame.classList.add('active');
+                    syncThemeToFrame(frame);
+                    syncLanguageToFrame(frame);
+                }
+                if (page === 'series') {
+                    const frame = document.getElementById('frame-series');
+                    const url = `/static/series.html?id=${encodeURIComponent(id)}`;
+                    if (frame.src !== location.origin + url) { frame.src = url; }
+                    document.querySelectorAll('iframe').forEach(f => f.classList.remove('active'));
+                    frame.classList.add('active');
+                    document.querySelectorAll('.nav-item,.side-pill').forEach(n => n.classList.remove('active'));
+                    syncThemeToFrame(frame);
+                    syncLanguageToFrame(frame);
+                    return;
+                }
+                if (page === 'library') {
+                    document.querySelectorAll('iframe').forEach(f => f.classList.remove('active'));
+                    const frame = document.getElementById('frame-library');
+                    frame.classList.add('active');
+                    syncThemeToFrame(frame);
+                    syncLanguageToFrame(frame);
+                    return;
+                }
+            }
         });
     </script>
 </body>

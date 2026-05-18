@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/static/logo.png" type="image/png">
+    <title>资产库</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/theme.js?v=20260509-global-theme-output-drag"></script>
+    <script src="/static/i18n.js?v=20260512-pages"></script>
+    <link rel="stylesheet" href="/static/theme.css?v=20260510-studio-pages-blue-dark10">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        * { box-sizing: border-box; }
+        :root {
+            --bg: #ffffff;
+            --stage-bg: #f7f8fa;
+            --stage-border: #e8eaed;
+            --border: #ebebeb;
+            --text: #121212;
+            --muted: #999;
+        }
+        body.theme-dark {
+            --bg: #171d29;
+            --stage-bg: #0f141d;
+            --stage-border: #2a3444;
+            --border: #242d3b;
+            --text: #e5e9f0;
+            --muted: #8f9aab;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(59,130,246,.08), transparent 32%),
+                radial-gradient(circle at top right, rgba(16,185,129,.06), transparent 28%),
+                var(--stage-bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .page { max-width: 1280px; margin: 0 auto; padding: 40px 32px 48px; }
+        .topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 20px; margin-bottom: 28px; flex-wrap: wrap;
+        }
+        .title-wrap h1 { margin: 0; font-size: 34px; font-weight: 800; letter-spacing: -.04em; }
+        .title-wrap p {
+            margin: 8px 0 0; color: var(--muted); font-size: 12px;
+            font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+        }
+        .topbar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .search-box {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 14px; border-radius: 12px;
+            border: 1px solid var(--border); background: var(--bg);
+            color: var(--text); font-size: 13px; min-width: 220px;
+        }
+        .search-box input {
+            border: none; outline: none; background: transparent;
+            color: var(--text); font-size: 13px; flex: 1; min-width: 0;
+        }
+        .search-box input::placeholder { color: var(--muted); }
+        .tab-bar {
+            display: flex; gap: 4px; margin-bottom: 24px;
+            border-bottom: 1px solid var(--border); padding-bottom: 0;
+        }
+        .tab-btn {
+            padding: 8px 18px; border-radius: 10px 10px 0 0;
+            border: none; background: transparent; color: var(--muted);
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            transition: color .15s, background .15s;
+            border-bottom: 2px solid transparent; margin-bottom: -1px;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--text); border-bottom-color: #3b82f6; }
+        .source-section { margin-bottom: 36px; }
+        .source-header {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 14px;
+        }
+        .source-label {
+            font-size: 11px; font-weight: 700; letter-spacing: .14em;
+            text-transform: uppercase; color: var(--muted);
+        }
+        .source-divider { flex: 1; height: 1px; background: var(--border); }
+        .source-badge {
+            font-size: 11px; font-weight: 600; padding: 2px 8px;
+            border-radius: 999px; background: var(--bg); border: 1px solid var(--border);
+            color: var(--muted);
+        }
+        .asset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 14px;
+        }
+        .asset-card {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 14px; padding: 16px; cursor: pointer;
+            transition: box-shadow .18s, transform .18s;
+            position: relative;
+        }
+        .asset-card:hover { box-shadow: 0 8px 24px rgba(15,23,42,.1); transform: translateY(-2px); }
+        .asset-card:hover .card-del { opacity: 1; }
+        .asset-icon {
+            width: 40px; height: 40px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px; margin-bottom: 10px;
+        }
+        .asset-icon.char { background: rgba(59,130,246,.12); }
+        .asset-icon.scene { background: rgba(16,185,129,.12); }
+        .asset-icon.prop { background: rgba(245,158,11,.12); }
+        .asset-name {
+            font-size: 14px; font-weight: 600; margin: 0 0 4px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .asset-desc {
+            font-size: 12px; color: var(--muted); margin: 0 0 8px;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .asset-meta { font-size: 11px; color: var(--muted); }
+        .card-del {
+            position: absolute; top: 10px; right: 10px;
+            width: 26px; height: 26px; border-radius: 8px;
+            border: 1px solid var(--border); background: var(--bg);
+            color: #ef4444; font-size: 13px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity .15s;
+        }
+        .card-del:hover { background: #fef2f2; }
+        .empty-state {
+            text-align: center; padding: 80px 20px; color: var(--muted);
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: .4; }
+        .empty-state p { margin: 0; font-size: 15px; }
+        .count-badge {
+            display: inline-flex; align-items: center;
+            min-width: 32px; height: 32px; padding: 0 12px;
+            border-radius: 999px; background: var(--bg);
+            border: 1px solid var(--border); color: var(--muted);
+            font-size: 12px; font-weight: 700; letter-spacing: .06em;
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="topbar">
+        <div class="title-wrap">
+            <h1 data-zh="资产库" data-en="Asset Library">资产库</h1>
+            <p data-zh="角色 · 场景 · 道具" data-en="Characters · Scenes · Props">角色 · 场景 · 道具</p>
+        </div>
+        <div class="topbar-right">
+            <span class="count-badge" id="total-count">0</span>
+            <div class="search-box">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                </svg>
+                <input type="text" id="search-input" placeholder="搜索资产..." data-zh-placeholder="搜索资产..." data-en-placeholder="Search assets...">
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-bar">
+        <button class="tab-btn active" data-tab="characters" data-zh="角色" data-en="Characters" onclick="switchTab('characters', this)">角色</button>
+        <button class="tab-btn" data-tab="scenes" data-zh="场景" data-en="Scenes" onclick="switchTab('scenes', this)">场景</button>
+        <button class="tab-btn" data-tab="props" data-zh="道具" data-en="Props" onclick="switchTab('props', this)">道具</button>
+    </div>
+
+    <div id="content-area"></div>
+</div>
+
+<script>
+const state = {
+    tab: 'characters',
+    search: '',
+    projects: [],
+    series: []
+};
+
+async function loadData() {
+    const [pr, sr] = await Promise.all([
+        fetch('/api/comic/projects').then(r => r.json()).catch(() => []),
+        fetch('/api/comic/series').then(r => r.json()).catch(() => [])
+    ]);
+    state.projects = pr;
+    state.series = sr;
+    render();
+}
+
+function getSourceName(project) {
+    if (project.series_id) {
+        const s = state.series.find(x => x.id === project.series_id);
+        const ep = project.episode_number ? ` EP${project.episode_number}` : '';
+        return s ? s.title + ep : '未知系列' + ep;
+    }
+    return project.title;
+}
+
+function buildAssets() {
+    const assets = [];
+    for (const p of state.projects) {
+        const source = getSourceName(p);
+        const sourceId = p.id;
+        for (const c of (p.characters || [])) {
+            assets.push({ type: 'characters', id: c.id, name: c.name, desc: c.description || '', source, sourceId, projectId: p.id });
+        }
+        for (const s of (p.scenes || [])) {
+            assets.push({ type: 'scenes', id: s.id, name: s.name, desc: s.description || '', source, sourceId, projectId: p.id });
+        }
+        for (const pr of (p.props || [])) {
+            assets.push({ type: 'props', id: pr.id, name: pr.name, desc: pr.description || '', source, sourceId, projectId: p.id });
+        }
+    }
+    for (const s of state.series) {
+        const source = s.title + ' (系列)';
+        const sourceId = 'series-' + s.id;
+        for (const c of (s.characters || [])) {
+            assets.push({ type: 'characters', id: c.id, name: c.name, desc: c.description || '', source, sourceId, seriesId: s.id });
+        }
+        for (const sc of (s.scenes || [])) {
+            assets.push({ type: 'scenes', id: sc.id, name: sc.name, desc: sc.description || '', source, sourceId, seriesId: s.id });
+        }
+    }
+    return assets;
+}
+
+function render() {
+    const all = buildAssets();
+    const filtered = all.filter(a => {
+        if (a.type !== state.tab) return false;
+        if (!state.search) return true;
+        const q = state.search.toLowerCase();
+        return a.name.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q) || a.source.toLowerCase().includes(q);
+    });
+
+    document.getElementById('total-count').textContent = filtered.length;
+
+    const grouped = {};
+    for (const a of filtered) {
+        if (!grouped[a.sourceId]) grouped[a.sourceId] = { source: a.source, items: [] };
+        grouped[a.sourceId].items.push(a);
+    }
+
+    const area = document.getElementById('content-area');
+    if (filtered.length === 0) {
+        area.innerHTML = `<div class="empty-state"><div class="icon">📦</div><p data-zh="暂无资产" data-en="No assets yet">暂无资产</p></div>`;
+        return;
+    }
+
+    const iconMap = { characters: { cls: 'char', emoji: '👤' }, scenes: { cls: 'scene', emoji: '🏞️' }, props: { cls: 'prop', emoji: '🎭' } };
+    const ic = iconMap[state.tab];
+
+    let html = '';
+    for (const [, group] of Object.entries(grouped)) {
+        html += `<div class="source-section">
+            <div class="source-header">
+                <span class="source-label">${escHtml(group.source)}</span>
+                <div class="source-divider"></div>
+                <span class="source-badge">${group.items.length}</span>
+            </div>
+            <div class="asset-grid">`;
+        for (const a of group.items) {
+            html += `<div class="asset-card" data-id="${escHtml(a.id)}" data-project="${escHtml(a.projectId||'')}" data-series="${escHtml(a.seriesId||'')}">
+                <button class="card-del" data-id="${escHtml(a.id)}" data-project="${escHtml(a.projectId||'')}" data-series="${escHtml(a.seriesId||'')}" title="删除">✕</button>
+                <div class="asset-icon ${ic.cls}">${ic.emoji}</div>
+                <p class="asset-name">${escHtml(a.name)}</p>
+                <p class="asset-desc">${escHtml(a.desc) || '<span style="opacity:.4">暂无描述</span>'}</p>
+                <p class="asset-meta">${escHtml(a.source)}</p>
+            </div>`;
+        }
+        html += `</div></div>`;
+    }
+    area.innerHTML = html;
+}
+
+function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function switchTab(tab, btn) {
+    state.tab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+}
+
+document.getElementById('search-input').addEventListener('input', e => {
+    state.search = e.target.value;
+    render();
+});
+
+document.getElementById('content-area').addEventListener('click', async e => {
+    const delBtn = e.target.closest('.card-del');
+    if (!delBtn) return;
+    e.stopPropagation();
+    const id = delBtn.dataset.id;
+    const projectId = delBtn.dataset.project;
+    const seriesId = delBtn.dataset.series;
+    if (!confirm('确认删除此资产？')) return;
+
+    let url = '';
+    if (projectId) {
+        const typeMap = { characters: 'characters', scenes: 'scenes', props: 'props' };
+        url = `/api/comic/projects/${projectId}/${typeMap[state.tab]}/${id}`;
+    } else if (seriesId) {
+        const typeMap = { characters: 'characters', scenes: 'scenes' };
+        url = `/api/comic/series/${seriesId}/${typeMap[state.tab]}/${id}`;
+    }
+    if (!url) return;
+    await fetch(url, { method: 'DELETE' });
+    await loadData();
+});
+
+window.addEventListener('message', e => {
+    if (e.origin !== location.origin) return;
+    if (e.data?.type === 'studio-theme') {
+        document.body.classList.toggle('theme-dark', e.data.theme === 'dark');
+    }
+    if (e.data?.type === 'studio-lang') {
+        const lang = e.data.lang || 'zh';
+        document.querySelectorAll('[data-zh]').forEach(el => {
+            el.textContent = lang === 'en' ? (el.dataset.en || el.dataset.zh) : el.dataset.zh;
+        });
+        const si = document.getElementById('search-input');
+        if (si) si.placeholder = lang === 'en' ? 'Search assets...' : '搜索资产...';
+    }
+});
+
+loadData();
+</script>
+</body>
+</html>
