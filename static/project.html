@@ -1,0 +1,3358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/static/logo.png" type="image/png">
+    <title>项目编辑器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/static/theme.js?v=20260509-global-theme-output-drag"></script>
+    <script src="/static/i18n.js?v=20260512-pages"></script>
+    <link rel="stylesheet" href="/static/theme.css?v=20260510-studio-pages-blue-dark10">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        :root {
+            --bg: #ffffff;
+            --stage-bg: #f7f8fa;
+            --stage-border: #e8eaed;
+            --border: #ebebeb;
+            --text: #121212;
+            --muted: #999;
+            --panel-shadow: 0 20px 50px rgba(15, 23, 42, .08);
+            --chip-bg: rgba(59, 130, 246, .10);
+            --chip-text: #2563eb;
+            --danger: #ef4444;
+            --success: #16a34a;
+        }
+        * { box-sizing: border-box; }
+        body.theme-dark {
+            --bg: #171d29;
+            --stage-bg: #0f141d;
+            --stage-border: #2a3444;
+            --border: #242d3b;
+            --text: #e5e9f0;
+            --muted: #8f9aab;
+            --panel-shadow: 0 20px 50px rgba(0, 0, 0, .28);
+            --chip-bg: rgba(59, 130, 246, .15);
+            --chip-text: #93c5fd;
+        }
+        html, body { margin: 0; height: 100%; }
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(59,130,246,.08), transparent 30%),
+                radial-gradient(circle at right 20%, rgba(16,185,129,.06), transparent 22%),
+                var(--stage-bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .app {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .topbar {
+            height: 56px;
+            padding: 0 18px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(255,255,255,.72);
+            backdrop-filter: blur(16px);
+            position: sticky;
+            top: 0;
+            z-index: 20;
+        }
+        body.theme-dark .topbar {
+            background: rgba(15,20,29,.8);
+        }
+        .back-btn,
+        .primary-btn,
+        .ghost-btn,
+        .mini-btn,
+        .icon-btn {
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            cursor: pointer;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        }
+        .back-btn:hover,
+        .primary-btn:hover,
+        .ghost-btn:hover,
+        .mini-btn:hover,
+        .icon-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .08);
+            border-color: var(--stage-border);
+        }
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .title-wrap {
+            min-width: 0;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+        .project-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -.03em;
+            padding: 6px 10px;
+            border-radius: 12px;
+            min-width: 120px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .project-title.editing,
+        .project-title:hover {
+            background: var(--bg);
+        }
+        .steps {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+        }
+        .step-tab {
+            border: 1px solid transparent;
+            background: transparent;
+            color: var(--muted);
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: color .2s ease, background .2s ease, border-color .2s ease;
+        }
+        .step-tab:hover {
+            color: var(--text);
+            background: rgba(255,255,255,.45);
+        }
+        .step-tab.active {
+            color: #fff;
+            background: #111827;
+        }
+        body.theme-dark .step-tab.active {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+        .main {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+        }
+        .content-panel,
+        .side-panel {
+            background: rgba(255,255,255,.62);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: var(--panel-shadow);
+            backdrop-filter: blur(12px);
+        }
+        body.theme-dark .content-panel,
+        body.theme-dark .side-panel {
+            background: rgba(17,23,34,.72);
+        }
+        .content-panel {
+            flex: 1;
+            min-width: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .side-panel {
+            width: 280px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow: auto;
+        }
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .section-title {
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .script-textarea,
+        .field,
+        .field-textarea {
+            width: 100%;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            outline: none;
+        }
+        input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+        .script-textarea {
+            flex: 1;
+            min-height: 360px;
+            resize: none;
+            padding: 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+        .field,
+        .field-textarea {
+            border-radius: 14px;
+            padding: 12px 14px;
+            font-size: 14px;
+        }
+        .field-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        .primary-btn,
+        .ghost-btn {
+            height: 44px;
+            border-radius: 14px;
+            padding: 0 16px;
+            font-size: 14px;
+            font-weight: 800;
+        }
+        .primary-btn {
+            background: #111827;
+            color: #fff;
+            border-color: #111827;
+        }
+        body.theme-dark .primary-btn {
+            background: #f1f5f9;
+            color: #0f172a;
+            border-color: #f1f5f9;
+        }
+        .ghost-btn {
+            background: transparent;
+        }
+        .mini-btn,
+        .icon-btn {
+            height: 30px;
+            border-radius: 999px;
+            padding: 0 12px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .icon-btn {
+            width: 26px;
+            height: 26px;
+            padding: 0;
+            color: var(--danger);
+        }
+        .muted {
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .entity-group {
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: rgba(255,255,255,.5);
+            overflow: hidden;
+        }
+        body.theme-dark .entity-group {
+            background: rgba(15,20,29,.36);
+        }
+        .entity-toggle {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 14px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 800;
+        }
+        .entity-body {
+            padding: 0 14px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .entity-body.collapsed {
+            display: none;
+        }
+        .chip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 34px;
+            padding: 4px 8px 4px 12px;
+            border-radius: 999px;
+            background: var(--chip-bg);
+            color: var(--chip-text);
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .chip button {
+            border: 0;
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, .15);
+            color: inherit;
+            cursor: pointer;
+            font-weight: 800;
+        }
+        .inline-form {
+            display: none;
+            gap: 8px;
+            flex-direction: column;
+        }
+        .inline-form.show {
+            display: flex;
+        }
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .preset-card,
+        .asset-card {
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,.72);
+            border-radius: 20px;
+        }
+        body.theme-dark .preset-card,
+        body.theme-dark .asset-card {
+            background: rgba(15,20,29,.5);
+        }
+        .preset-card {
+            padding: 16px;
+            cursor: pointer;
+            transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+        }
+        .preset-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 28px rgba(15, 23, 42, .08);
+        }
+        .preset-card.active {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 1px #2563eb inset;
+        }
+        .preset-name {
+            margin: 0 0 10px;
+            font-size: 16px;
+            font-weight: 800;
+        }
+        .preset-desc {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .asset-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .gen-params-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 0;
+            flex-wrap: wrap;
+            font-size: 12px;
+        }
+        .gen-params-label {
+            font-weight: 700;
+            color: var(--muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            margin-right: 4px;
+        }
+        .gen-params-bar label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .gen-params-bar select {
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+        }
+        .gen-params-bar .style-toggle-btn {
+            margin-left: auto;
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--muted);
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .gen-params-bar .style-toggle-btn:hover {
+            background: var(--hover-bg, #f3f4f6);
+        }
+        .style-summary {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+            font-size: 11px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+        .style-summary .style-name {
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .style-summary .style-prompt-text {
+            color: var(--muted);
+            word-break: break-all;
+        }
+        .asset-tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+        .asset-tab {
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: var(--muted);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            border-radius: 0;
+            transition: color .15s;
+        }
+        .asset-tab.active {
+            color: var(--text);
+            border-bottom-color: var(--accent);
+        }
+        .asset-tab-count {
+            font-size: 11px;
+            font-weight: 700;
+            background: var(--border);
+            border-radius: 10px;
+            padding: 1px 6px;
+            margin-left: 4px;
+        }
+        .asset-tab.active .asset-tab-count {
+            background: var(--accent);
+            color: #fff;
+        }
+        .asset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+        }
+        .asset-card {
+            overflow: hidden;
+        }
+        .asset-preview {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background:
+                linear-gradient(135deg, rgba(59,130,246,.08), rgba(16,185,129,.08)),
+                var(--stage-bg);
+            color: var(--muted);
+            font-size: 36px;
+            position: relative;
+        }
+        .asset-regen-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .asset-regen-btn {
+            padding: 2px 8px;
+            font-size: 16px;
+            line-height: 1;
+            min-width: 0;
+        }
+        .asset-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .asset-meta {
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .asset-name {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 800;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            height: 26px;
+            padding: 0 10px;
+            border-radius: 999px;
+            background: rgba(17, 24, 39, .08);
+            color: var(--text);
+            font-size: 11px;
+            font-weight: 800;
+        }
+        .coming-soon,
+        .empty-state,
+        .not-found {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .coming-card,
+        .empty-card {
+            width: min(540px, 100%);
+            padding: 40px 28px;
+            border-radius: 28px;
+            border: 1px dashed var(--stage-border);
+            background: rgba(255,255,255,.38);
+            backdrop-filter: blur(12px);
+        }
+        body.theme-dark .coming-card,
+        body.theme-dark .empty-card {
+            background: rgba(17,23,34,.5);
+        }
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 999px;
+            display: inline-block;
+            animation: spin .8s linear infinite;
+        }
+        .status {
+            min-height: 18px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+        .status.success { color: var(--success); }
+        .status.error { color: var(--danger); }
+        .hidden { display: none !important; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .frame-card { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; gap: 16px; cursor: pointer; transition: box-shadow .18s; }
+        .frame-card:hover { box-shadow: 0 4px 16px rgba(15,23,42,.1); }
+        .frame-card.selected { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,.2); }
+        .frame-preview { width: 200px; aspect-ratio: 16/9; background: var(--stage-bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex-shrink: 0; position: relative; }
+        .frame-preview img { width: 100%; height: 100%; object-fit: cover; }
+        .frame-preview .no-img { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; }
+        .frame-num { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,.6); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 6px; }
+        .frame-body { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+        .frame-action { font-size: 14px; color: var(--text); line-height: 1.5; }
+        .frame-dialogue { font-size: 13px; color: var(--muted); font-style: italic; }
+        .frame-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+        .cam-badge { font-size: 11px; padding: 2px 8px; background: rgba(59,130,246,.1); color: #2563eb; border-radius: 6px; border: 1px solid rgba(59,130,246,.2); }
+        .frame-actions { display: flex; gap: 6px; margin-top: auto; }
+        .render-btn { padding: 4px 10px; font-size: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
+        .render-btn:hover { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+        .danger-btn { padding: 4px 10px; font-size: 12px; border-radius: 8px; border: 1px solid #ef4444; background: transparent; color: #ef4444; cursor: pointer; }
+        .video-task { padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); margin-bottom: 8px; }
+        .video-task.completed { border-color: #16a34a; }
+        .video-task.failed { border-color: #ef4444; }
+        .status-badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+        .status-badge.pending { background: rgba(234,179,8,.1); color: #ca8a04; }
+        .status-badge.processing { background: rgba(59,130,246,.1); color: #2563eb; }
+        .status-badge.completed { background: rgba(22,163,74,.1); color: #16a34a; }
+        .status-badge.failed { background: rgba(239,68,68,.1); color: #ef4444; }
+        .assembly-layout { display: flex; gap: 20px; height: 100%; min-height: 0; }
+        .assembly-timeline { flex: 1; overflow-y: auto; }
+        .assembly-variants { width: 320px; flex-shrink: 0; border-left: 1px solid var(--border); padding-left: 20px; overflow-y: auto; }
+        .timeline-frame { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); margin-bottom: 10px; cursor: pointer; }
+        .timeline-frame.selected { border-color: #3b82f6; }
+        .timeline-frame.ready { border-color: #16a34a; }
+        .timeline-thumb { width: 120px; aspect-ratio: 16/9; background: var(--stage-bg); border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+        .timeline-thumb video, .timeline-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .merge-bar { padding: 16px 0; border-top: 1px solid var(--border); margin-top: 16px; display: flex; align-items: center; gap: 16px; }
+        @media (max-width: 1024px) {
+            .preset-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        @media (max-width: 860px) {
+            .topbar {
+                height: auto;
+                min-height: 56px;
+                padding: 12px 14px;
+                flex-wrap: wrap;
+            }
+            .main {
+                flex-direction: column;
+                padding: 14px;
+            }
+            .side-panel {
+                width: 100%;
+                order: -1;
+            }
+            .form-grid,
+            .preset-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        /* Asset Detail Modal */
+        .asset-modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.72);
+            backdrop-filter: blur(8px);
+            padding: 24px;
+            overscroll-behavior: contain;
+            animation: overlayIn .18s ease;
+        }
+        @keyframes overlayIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+        }
+        .asset-modal-overlay.hidden { display: none; }
+        .asset-modal {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            width: 100%;
+            max-width: 1040px;
+            max-height: 88vh;
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,.04);
+            animation: modalIn .22s cubic-bezier(.22,1,.36,1);
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(.96) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .asset-modal-overlay, .asset-modal { animation: none; }
+        }
+        body.theme-dark .asset-modal {
+            background: #0f141d;
+        }
+        .asset-modal-left.hidden, .asset-modal-right.hidden { display: none; }
+        .asset-modal-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .asset-modal-tab { padding: 8px 16px; font-size: 12px; font-weight: 700; background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; color: var(--muted); }
+        .asset-modal-tab.active { color: var(--text); border-bottom-color: #2563eb; }
+        .asset-modal-tab:disabled { opacity: 0.4; cursor: not-allowed; }
+        .asset-modal-left {
+            width: 50%;
+            background: var(--stage-bg, #f8fafc);
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            border-right: 1px solid var(--border);
+            min-height: 420px;
+            font-size: 80px;
+            position: relative;
+        }
+        .asset-modal-left img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .asset-modal-right {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .asset-modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .asset-modal-title {
+            font-size: 17px;
+            font-weight: 800;
+            margin: 0 0 0 8px;
+            letter-spacing: -.02em;
+            flex: 1;
+        }
+        .asset-modal-close {
+            background: none;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 16px;
+            line-height: 1;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: background .15s, color .15s;
+            flex-shrink: 0;
+        }
+        .asset-modal-close:hover { background: var(--hover-bg, rgba(0,0,0,.06)); color: var(--text); border-color: var(--text); }
+        .asset-modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .asset-modal-desc-label {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+        .asset-modal-desc-text {
+            font-size: 13px;
+            color: var(--text);
+            line-height: 1.6;
+            background: rgba(0,0,0,.03);
+            border-radius: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: border-color .15s;
+        }
+        .asset-modal-desc-text:hover { border-color: #2563eb; }
+        body.theme-dark .asset-modal-desc-text { background: rgba(255,255,255,.04); }
+        .asset-modal-desc-textarea {
+            width: 100%;
+            min-height: 80px;
+            background: var(--input-bg, rgba(0,0,0,.04));
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 13px;
+            color: var(--text);
+            resize: vertical;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .asset-modal-desc-textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.25); }
+        .asset-modal-desc-textarea:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+        .asset-modal-char-tab {
+            padding: 5px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: none;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--muted);
+            transition: background .15s, color .15s, border-color .15s;
+        }
+        .asset-modal-char-tab.active {
+            background: #2563eb;
+            color: #fff;
+            border-color: #2563eb;
+        }
+        .asset-modal-footer {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .asset-card { cursor: pointer; }
+
+        /* Lightbox */
+        .lightbox-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(0,0,0,0.92);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+        }
+        .lightbox-overlay.hidden { display: none; }
+        .lightbox-overlay img {
+            max-width: 90vw;
+            max-height: 90vh;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+            cursor: default;
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            background: rgba(255,255,255,0.12);
+            border: none;
+            color: #fff;
+            font-size: 28px;
+            line-height: 1;
+            padding: 4px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .lightbox-close:hover { background: rgba(255,255,255,0.22); }
+
+        /* Left panel image clickable */
+        .asset-modal-left img { cursor: zoom-in; }
+
+        /* Batch size selector */
+        .batch-size-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .batch-size-btn {
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: none;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--muted);
+            transition: background .15s, color .15s, border-color .15s;
+        }
+        .batch-size-btn.active {
+            background: #2563eb;
+            color: #fff;
+            border-color: #2563eb;
+        }
+
+        /* Upload button in modal left */
+        .asset-modal-upload-btn {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.55);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            backdrop-filter: blur(4px);
+        }
+        .asset-modal-upload-btn:hover { background: rgba(0,0,0,0.75); }
+        /* .asset-modal-left position handled by #assetModalImg flex child */
+
+        /* Variant strip */
+        .variant-strip {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding: 8px 4px 4px;
+            scrollbar-width: thin;
+        }
+        /* variant strip inside asset modal left panel */
+        .asset-modal-left .variant-strip {
+            flex-shrink: 0;
+            border-top: 1px solid var(--border);
+            padding: 8px 12px;
+            background: var(--stage-bg, #f8fafc);
+        }
+        /* image container inside asset modal left panel */
+        #assetModalImg {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 0;
+        }
+        #refImageBadge {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,.65) 0%, transparent 100%);
+            padding: 28px 12px 10px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            pointer-events: none;
+            z-index: 2;
+        }
+        #refImageBadge.hidden { display: none; }
+        #refImageBadge img {
+            width: 40px; height: 40px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1.5px solid rgba(255,255,255,.5);
+            flex-shrink: 0;
+        }
+        #refImageBadge span {
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.3;
+            text-shadow: 0 1px 3px rgba(0,0,0,.6);
+        }
+        /* Character Workbench 3-column layout */
+        .char-workbench { display: flex; flex-direction: column; width: 100%; height: 100%; }
+        .char-workbench.hidden { display: none; }
+        .cw-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+        .cw-header h2 { font-size: 18px; font-weight: 800; margin: 0; }
+        .cw-columns { flex: 1; display: flex; overflow: hidden; }
+        .cw-col { flex: 1; display: flex; flex-direction: column; padding: 16px; border-right: 1px solid var(--border); overflow-y: auto; }
+        .cw-col:last-child { border-right: none; }
+        .cw-col-header { font-size: 13px; font-weight: 700; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; }
+        .cw-col-img { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 200px; background: var(--stage-bg, #f8fafc); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+        .cw-col-img img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
+        .cw-col-variants { margin-bottom: 12px; display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; }
+        .cw-col-prompt { min-height: 60px; font-size: 12px; font-family: monospace; border: 1px solid var(--border); border-radius: 8px; padding: 8px; resize: vertical; margin-bottom: 8px; background: var(--bg); color: var(--text); }
+        .cw-upload-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 4px; opacity: 0.6; }
+        .cw-upload-btn:hover { opacity: 1; }
+        .cw-lock-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; font-weight: 600; z-index: 10; border-radius: 8px; }
+        .cw-gen-row { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .cw-gen-row .cw-gen-btn { flex: 1; }
+        .batch-sel { display: flex; gap: 2px; }
+        .batch-btn { padding: 2px 8px; font-size: 11px; font-weight: 600; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer; color: var(--muted); }
+        .batch-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+        .cw-gen-btn { width: 100%; height: 36px; font-size: 13px; flex-shrink: 0; }
+        .cw-footer { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+        .cw-mode-group { display: inline-flex; gap: 2px; margin-left: 8px; vertical-align: middle; }
+        .cw-mode-btn { padding: 2px 8px; font-size: 11px; font-weight: 600; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer; color: var(--muted); }
+        .cw-mode-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+        .cw-mode-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .asset-modal.cw-mode { max-width: 1280px; }
+        .variant-thumb {
+            position: relative;
+            flex-shrink: 0;
+            width: 56px;
+            height: 56px;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 2px solid transparent;
+            cursor: pointer;
+            background: var(--surface);
+        }
+        .variant-thumb.selected { border-color: #2563eb; }
+        .variant-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .variant-thumb .v-del {
+            display: none;
+            position: absolute;
+            top: 2px; right: 2px;
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 18px; height: 18px;
+            font-size: 11px;
+            line-height: 18px;
+            text-align: center;
+            cursor: pointer;
+            padding: 0;
+        }
+        .variant-thumb:hover .v-del { display: block; }
+        .variant-thumb .v-fav {
+            position: absolute;
+            bottom: 2px; right: 2px;
+            font-size: 13px;
+            line-height: 1;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            filter: drop-shadow(0 0 2px rgba(0,0,0,.5));
+        }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    </style>
+<body>
+    <div class="app" id="appRoot">
+        <header class="topbar">
+            <button class="back-btn" id="backBtn" type="button" aria-label="Back">←</button>
+            <div class="title-wrap">
+                <h1 class="project-title" id="projectTitle" title="点击编辑" tabindex="0"></h1>
+            </div>
+            <nav class="steps" id="stepTabs"></nav>
+        </header>
+
+        <main class="main">
+            <section class="content-panel" id="contentPanel"></section>
+            <aside class="side-panel" id="sidePanel"></aside>
+        </main>
+    </div>
+
+    <div id="assetModal" class="asset-modal-overlay hidden">
+            <div class="asset-modal">
+                <div class="asset-modal-left">
+                    <div class="asset-modal-tabs" id="assetModalTabs">
+                        <button class="asset-modal-tab active" data-tab="image">Image</button>
+                        <button class="asset-modal-tab" data-tab="video" disabled title="Coming soon">Video</button>
+                    </div>
+                    <div id="assetModalImg"></div>
+                    <div id="refImageBadge" class="hidden">
+                        <img id="refImageThumb" src="" alt="ref">
+                        <span>📎 参考图已上传<br>Upload Detected</span>
+                    </div>
+                    <div class="variant-strip" id="variantStrip"></div>
+                </div>
+                <div class="asset-modal-right">
+                    <div class="asset-modal-header">
+                        <span class="badge" id="assetModalBadge"></span>
+                        <h2 class="asset-modal-title" id="assetModalTitle"></h2>
+                        <button class="asset-modal-close" id="assetModalClose" aria-label="关闭 / Close">×</button>
+                    </div>
+                    <div class="asset-modal-body">
+                        <div id="assetModalCharTabs" style="display:none;">
+                            <div class="asset-modal-desc-label">生成类型 / Generation Type</div>
+                            <div style="display:flex;gap:8px;">
+                                <button class="asset-modal-char-tab active" data-char-type="character">全身 / Full Body</button>
+                                <button class="asset-modal-char-tab" data-char-type="character_headshot">头像 / Headshot</button>
+                            </div>
+                        </div>
+                        <div id="assetModalPromptSection">
+                            <label class="asset-modal-desc-label" for="assetModalPrompt">生成提示词 / Generation Prompt</label>
+                            <textarea id="assetModalPrompt" class="asset-modal-desc-textarea" style="min-height:80px;font-family:monospace;font-size:12px;" placeholder="自定义生成描述（留空则根据资产信息自动生成）…"></textarea>
+                        </div>
+                        <div id="assetModalDescSection">
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <button id="assetModalDescToggle" type="button" aria-expanded="false" aria-controls="assetModalDescBody" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:2px 0;background:none;border:none;flex:1;text-align:left;" onclick="toggleAssetModalDesc()">
+                                    <div class="asset-modal-desc-label" id="assetModalDescLabel" style="margin-bottom:0;flex:1;">描述 / Description</div>
+                                    <span id="assetModalDescArrow" style="font-size:11px;color:var(--muted);" aria-hidden="true">▶</span>
+                                </button>
+                                <button id="assetModalDescEditBtn" type="button" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:2px 4px;border-radius:4px;line-height:1;transition:color .15s;" title="编辑描述 / Edit description" aria-label="编辑描述 / Edit description">✎</button>
+                            </div>
+                            <div id="assetModalDescBody" style="display:none;margin-top:6px;">
+                                <div id="assetModalDescView" class="asset-modal-desc-text"></div>
+                                <div id="assetModalDescEdit" style="display:none;">
+                                    <textarea class="asset-modal-desc-textarea" id="assetModalDescTextarea"></textarea>
+                                    <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end;">
+                                        <button class="ghost-btn" id="assetModalDescCancel" style="height:34px;font-size:12px;">取消</button>
+                                        <button class="primary-btn" id="assetModalDescSave" style="height:34px;font-size:12px;">保存</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="assetModalStyleSection">
+                            <div class="asset-modal-desc-label">风格设置 / Style Settings</div>
+                            <div style="background:rgba(0,0,0,.04);border-radius:10px;padding:12px;border:1px solid var(--border);">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <input type="checkbox" id="assetModalApplyStyle" checked style="width:16px;height:16px;flex-shrink:0;" aria-label="应用风格方向 / Apply Art Direction Style">
+                                    <button id="artDirectionHeader" type="button" aria-expanded="false" aria-controls="artDirectionBody" style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;background:none;border:none;padding:0;text-align:left;" onclick="toggleArtDirection()">
+                                        <span style="font-size:13px;font-weight:700;flex:1;">应用风格方向 / Apply Art Direction Style</span>
+                                        <span id="artDirectionArrow" style="font-size:11px;color:var(--muted);" aria-hidden="true">▶</span>
+                                    </button>
+                                </div>
+                                <div id="artDirectionBody" style="display:none;margin-top:10px;">
+                                    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px;">正向提示词 / Positive:</div>
+                                    <pre id="artDirPositive" style="font-size:11px;color:var(--muted);font-family:monospace;background:rgba(0,0,0,.04);padding:8px;border-radius:6px;white-space:pre-wrap;word-break:break-all;margin:0 0 8px;"></pre>
+                                    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px;">负向提示词 / Negative:</div>
+                                    <pre id="artDirNegative" style="font-size:11px;color:var(--muted);font-family:monospace;background:rgba(0,0,0,.04);padding:8px;border-radius:6px;white-space:pre-wrap;word-break:break-all;margin:0;"></pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="assetModalAdvancedSection">
+                            <button id="assetModalAdvancedToggle" type="button" aria-expanded="false" aria-controls="assetModalAdvancedBody" style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--muted);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;padding:0;">
+                                <span id="assetModalAdvancedArrow" aria-hidden="true">▶</span> 高级设置 / Advanced (Negative Prompt)
+                            </button>
+                            <div id="assetModalAdvancedBody" style="display:none;margin-top:8px;">
+                                <label for="assetModalNegativePrompt" style="display:none;">负向提示词 / Negative Prompt</label>
+                                <textarea id="assetModalNegativePrompt" class="asset-modal-desc-textarea" style="min-height:72px;font-family:monospace;font-size:12px;" placeholder="Enter negative prompt…"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="asset-modal-footer">
+                        <div style="display:flex;align-items:center;gap:6px;flex:1;flex-wrap:wrap;">
+                            <button class="primary-btn" id="assetModalRegenBtn" style="flex:1;height:42px;font-size:14px;font-weight:800;">↺ 重新生成 / Regenerate</button>
+                            <div class="batch-size-row" id="assetModalBatchRow" style="display:none;">
+                                <span style="font-size:11px;font-weight:700;color:var(--muted);">×</span>
+                                <button class="batch-size-btn active" data-batch="1">1</button>
+                                <button class="batch-size-btn" data-batch="2">2</button>
+                                <button class="batch-size-btn" data-batch="3">3</button>
+                                <button class="batch-size-btn" data-batch="4">4</button>
+                            </div>
+                            <label id="useRefLabel" style="display:none;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;">
+                                <input type="checkbox" id="useCurrentAsRef" style="cursor:pointer;"> 参考当前图
+                            </label>
+                        </div>
+                        <button id="assetModalDoneBtn" style="padding:0 20px;height:42px;background:#16a34a;color:#fff;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-size:13px;white-space:nowrap;flex-shrink:0;">✓ 完成 / Done</button>
+                    </div>
+                </div>
+            <!-- Character Workbench (3-column layout, shown for characters) -->
+            <div id="charWorkbench" class="char-workbench hidden">
+                <div class="cw-header">
+                    <h2 id="cwTitle"></h2>
+                    <button class="asset-modal-close" id="cwClose" aria-label="Close">×</button>
+                </div>
+                <div class="cw-columns">
+                    <div class="cw-col" data-cw-type="character">
+                        <div class="cw-col-header">全身 / Full Body <button class="cw-upload-btn" data-cw-upload="character" title="Upload" aria-label="Upload Full Body image">📎</button><span class="cw-mode-group"><button class="cw-mode-btn active">Static</button><button class="cw-mode-btn cw-motion-btn" disabled>Motion</button></span></div>
+                        <div class="cw-col-img" id="cwImgFullBody"></div>
+                        <div class="cw-col-variants" id="cwVarFullBody"></div>
+                        <label for="cwPromptFullBody" class="sr-only">Full Body prompt</label>
+                        <textarea class="cw-col-prompt" id="cwPromptFullBody"></textarea>
+                        <div class="cw-gen-row"><span class="batch-sel" data-cw-batch="character"><button class="batch-btn active" data-batch="1">x1</button><button class="batch-btn" data-batch="2">x2</button><button class="batch-btn" data-batch="3">x3</button><button class="batch-btn" data-batch="4">x4</button></span><button class="primary-btn cw-gen-btn" data-cw-gen="character">↺ Generate</button></div>
+                    </div>
+                    <div class="cw-col" data-cw-type="character_three_view">
+                        <div class="cw-col-header">三视图 / Three View <button class="cw-upload-btn" data-cw-upload="character_three_view" title="Upload" aria-label="Upload Three View image">📎</button><span class="cw-mode-group"><button class="cw-mode-btn active">Static</button><button class="cw-mode-btn cw-motion-btn" disabled>Motion</button></span></div>
+                        <div class="cw-col-img" id="cwImgThreeView"></div>
+                        <div class="cw-col-variants" id="cwVarThreeView"></div>
+                        <label for="cwPromptThreeView" class="sr-only">Three View prompt</label>
+                        <textarea class="cw-col-prompt" id="cwPromptThreeView"></textarea>
+                        <div class="cw-gen-row"><span class="batch-sel" data-cw-batch="character_three_view"><button class="batch-btn active" data-batch="1">x1</button><button class="batch-btn" data-batch="2">x2</button><button class="batch-btn" data-batch="3">x3</button><button class="batch-btn" data-batch="4">x4</button></span><button class="primary-btn cw-gen-btn" data-cw-gen="character_three_view">↺ Generate</button></div>
+                    </div>
+                    <div class="cw-col" data-cw-type="character_headshot">
+                        <div class="cw-col-header">头像 / Headshot <button class="cw-upload-btn" data-cw-upload="character_headshot" title="Upload" aria-label="Upload Headshot image">📎</button><span class="cw-mode-group"><button class="cw-mode-btn active">Static</button><button class="cw-mode-btn cw-motion-btn" disabled>Motion</button></span></div>
+                        <div class="cw-col-img" id="cwImgHeadshot"></div>
+                        <div class="cw-col-variants" id="cwVarHeadshot"></div>
+                        <label for="cwPromptHeadshot" class="sr-only">Headshot prompt</label>
+                        <textarea class="cw-col-prompt" id="cwPromptHeadshot"></textarea>
+                        <div class="cw-gen-row"><span class="batch-sel" data-cw-batch="character_headshot"><button class="batch-btn active" data-batch="1">x1</button><button class="batch-btn" data-batch="2">x2</button><button class="batch-btn" data-batch="3">x3</button><button class="batch-btn" data-batch="4">x4</button></span><button class="primary-btn cw-gen-btn" data-cw-gen="character_headshot">↺ Generate</button></div>
+                    </div>
+                </div>
+                <div class="cw-footer">
+                    <button id="cwLockBtn" aria-label="Lock asset" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;white-space:nowrap;">🔒 Lock</button>
+                    <button id="cwCancelBtn" aria-label="Cancel generation" style="display:none;padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;white-space:nowrap;color:var(--danger,#e53e3e);">✕ 取消</button>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;white-space:nowrap;"><input type="checkbox" id="cwApplyStyle" checked> Apply Style</label>
+                    <label for="cwNegativePrompt" class="sr-only">Negative prompt</label>
+                    <textarea id="cwNegativePrompt" class="cw-col-prompt" style="flex:1;min-height:36px;margin:0;" placeholder="Negative prompt…"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="lightboxOverlay" class="lightbox-overlay hidden">
+        <button class="lightbox-close" id="lightboxClose">×</button>
+        <img id="lightboxImg" src="" alt="">
+    </div>
+
+    <!-- Hidden file input for asset upload -->
+    <input type="file" id="assetUploadInput" accept="image/*" style="display:none;">
+    <input type="file" id="cwUploadInput" accept="image/*" style="display:none;">
+
+    <script>
+        const projectId = new URLSearchParams(location.search).get('id');
+        const state = {
+            lang: 'zh',
+            theme: 'light',
+            activeStep: 1,
+            project: null,
+            parsing: false,
+            syncingDesc: false,
+            syncDescTaskId: null,
+            showPresetInput: false,
+            generating: false,
+            savingStyle: false,
+            scriptText: '',
+            status: { text: '', kind: '' },
+            expanded: { characters: true, scenes: true, props: true },
+            assetTab: 'all',
+            aspectRatio: { character: '1:1', scene: '16:9', prop: '1:1' },
+            imageModels: [],
+            selectedImageModel: '',
+            presetId: '',
+            customStylePrompt: '',
+            customNegativePrompt: '',
+            aiRecommendations: [],
+            analyzingStyle: false,
+            draftTitle: '',
+            selectedFrameId: null,
+            pollTimer: null,
+            stepListenerAbort: null,
+            modalAssetType: null,
+            modalAssetId: null,
+            modalDescEditing: false,
+            modalApplyStyle: true,
+            modalNegativePrompt: 'low quality, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, jpeg artifacts, signature, watermark, blurry',
+            modalAdvancedOpen: false,
+            modalArtDirectionOpen: false,
+            modalDescOpen: false,
+            modalCharType: 'character',
+            modalBatchSize: 1,
+            editingEntity: null
+        };
+
+        const presets = [
+            { id: 'ghibli',     name: 'Ghibli Magic',       description: '吉卜力工作室手绘风格，温暖细腻的水彩画质感', prompt: 'Studio Ghibli style, hand-drawn animation, watercolor painting, soft lighting, detailed backgrounds, whimsical atmosphere, pastoral scenery, warm colors, painterly textures, Miyazaki aesthetic', negative: 'photorealistic, 3d render, CGI, dark, gritty, modern, low quality, blurry' },
+            { id: 'pixar',      name: 'Pixar 3D',            description: '皮克斯风格3D动画，色彩鲜艳，角色生动',         prompt: 'Pixar style, 3D animation, vibrant colors, smooth textures, expressive characters, cinematic lighting, cartoon rendering, glossy materials, detailed environments, family-friendly', negative: '2d, flat, realistic, dark mood, horror, low poly, rough textures' },
+            { id: 'cinematic',  name: 'Cinematic Realism',   description: '电影级写实风格，专业打光和镜头语言',             prompt: 'cinematic, photorealistic, 8k, volumetric lighting, film grain, shallow depth of field, dramatic lighting, professional color grading, anamorphic lens, movie quality', negative: 'cartoon, anime, low quality, blurry, oversaturated, amateur' },
+            { id: 'noir',       name: 'Film Noir',           description: '黑色电影风格，高对比度黑白影像',                 prompt: 'black and white, film noir, high contrast, dramatic shadows, 1940s aesthetic, moody lighting, venetian blinds shadows, detective story, cinematic composition, grainy film', negative: 'colorful, bright, happy, modern, low contrast, flat lighting' },
+            { id: 'cyberpunk',  name: 'Cyberpunk Neon',      description: '赛博朋克风格，霓虹灯光和未来主义美学',           prompt: 'cyberpunk, neon lights, futuristic, dark atmosphere, rain-soaked streets, holographic displays, high-tech low-life, blade runner aesthetic, purple and cyan color scheme, dystopian cityscape', negative: 'bright, cheerful, natural, pastoral, vintage, low-tech' },
+            { id: 'anime',      name: 'Anime Style',         description: '日式动漫风格，明快色彩和夸张表现',               prompt: 'anime style, cel shading, vibrant colors, sharp outlines, expressive eyes, dynamic poses, Japanese animation, clean linework, colorful, detailed character design', negative: 'photorealistic, western cartoon, 3d, blurry, washed out colors' },
+            { id: 'watercolor', name: 'Watercolor Dream',    description: '水彩画风格，柔和的色彩过渡和艺术质感',           prompt: 'watercolor painting, soft edges, pastel colors, artistic, dreamy atmosphere, gentle brushstrokes, paper texture, flowing colors, impressionistic, delicate details', negative: 'sharp, digital, photorealistic, harsh lines, solid colors, 3d' },
+            { id: 'comic',      name: 'Comic Book',          description: '美式漫画风格，粗线条和网点阴影',                 prompt: 'comic book style, bold outlines, halftone shading, vibrant colors, dynamic composition, action lines, speech bubbles aesthetic, pop art influence, superhero comics', negative: 'photorealistic, soft, blurry, 3d, muted colors, realistic lighting' }
+        ];
+
+        const steps = [
+            { id: 1, label: '1.脚本' },
+            { id: 2, label: '2.风格' },
+            { id: 3, label: '3.资产' },
+            { id: 4, label: '4.分镜' },
+            { id: 5, label: '5.动态' },
+            { id: 6, label: '6.合成' }
+        ];
+
+        const contentPanel = document.getElementById('contentPanel');
+        const sidePanel = document.getElementById('sidePanel');
+        const stepTabs = document.getElementById('stepTabs');
+        const projectTitle = document.getElementById('projectTitle');
+        const assetModal = document.getElementById('assetModal');
+        const assetModalImg = document.getElementById('assetModalImg');
+        const assetModalTitle = document.getElementById('assetModalTitle');
+        const assetModalDescLabel = document.getElementById('assetModalDescLabel');
+        const assetModalDescView = document.getElementById('assetModalDescView');
+        const assetModalDescEdit = document.getElementById('assetModalDescEdit');
+        const assetModalDescTextarea = document.getElementById('assetModalDescTextarea');
+        const assetModalDescEditBtn = document.getElementById('assetModalDescEditBtn');
+        const assetModalBadge = document.getElementById('assetModalBadge');
+        const assetModalRegenBtn = document.getElementById('assetModalRegenBtn');
+        const assetModalApplyStyle = document.getElementById('assetModalApplyStyle');
+        const assetModalAdvancedBody = document.getElementById('assetModalAdvancedBody');
+        const assetModalAdvancedArrow = document.getElementById('assetModalAdvancedArrow');
+        const assetModalNegativePrompt = document.getElementById('assetModalNegativePrompt');
+        const assetModalCharTabs = document.getElementById('assetModalCharTabs');
+        const assetModalPrompt = document.getElementById('assetModalPrompt');
+        const artDirectionBody = document.getElementById('artDirectionBody');
+        const artDirectionArrow = document.getElementById('artDirectionArrow');
+        const artDirPositive = document.getElementById('artDirPositive');
+        const artDirNegative = document.getElementById('artDirNegative');
+
+        function syncAssetModalCharTabs() {
+            document.querySelectorAll('.asset-modal-char-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.charType === state.modalCharType);
+            });
+            // Refresh image, variant strip, and prompt for the active tab
+            if (state.modalAssetType === 'character' && state.modalAssetId) {
+                const asset = getAssetByTypeAndId('character', state.modalAssetId);
+                if (asset) {
+                    const url = selectedUrl(asset, state.modalCharType);
+                    refreshAssetModalImage(url, asset.name || '');
+                    renderVariantStrip(asset, state.modalCharType);
+                    const promptKey = state.modalCharType === 'character_headshot' ? 'headshot_prompt' : 'prompt';
+                    const variantKey = state.modalCharType === 'character_headshot' ? 'headshot_variants' : 'variants';
+                    const strictlyMaintainPrefix = 'STRICTLY MAINTAIN the SAME character appearance, face, hairstyle, skin tone, and clothing as the reference image. ';
+                    const hasUploadedSource = (asset[variantKey] || []).some(v => v.is_uploaded_source);
+                    const savedPrompt = asset[promptKey] || '';
+                    if (hasUploadedSource && !savedPrompt.startsWith(strictlyMaintainPrefix)) {
+                        assetModalPrompt.value = strictlyMaintainPrefix + savedPrompt;
+                    } else {
+                        assetModalPrompt.value = savedPrompt;
+                    }
+                }
+            }
+        }
+
+        function toggleArtDirection() {
+            state.modalArtDirectionOpen = !state.modalArtDirectionOpen;
+            artDirectionBody.style.display = state.modalArtDirectionOpen ? '' : 'none';
+            artDirectionArrow.textContent = state.modalArtDirectionOpen ? '▼' : '▶';
+            document.getElementById('artDirectionHeader').setAttribute('aria-expanded', state.modalArtDirectionOpen ? 'true' : 'false');
+        }
+
+        function toggleAssetModalDesc() {
+            state.modalDescOpen = !state.modalDescOpen;
+            document.getElementById('assetModalDescBody').style.display = state.modalDescOpen ? '' : 'none';
+            document.getElementById('assetModalDescArrow').textContent = state.modalDescOpen ? '▼' : '▶';
+            document.getElementById('assetModalDescToggle').setAttribute('aria-expanded', state.modalDescOpen ? 'true' : 'false');
+        }
+
+        function syncBatchSizeBtns() {
+            document.querySelectorAll('.batch-size-btn').forEach(btn => {
+                btn.classList.toggle('active', Number(btn.dataset.batch) === state.modalBatchSize);
+            });
+        }
+
+        function openLightbox(url) {
+            if (!url) return;
+            document.getElementById('lightboxImg').src = url;
+            document.getElementById('lightboxOverlay').classList.remove('hidden');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightboxOverlay').classList.add('hidden');
+            document.getElementById('lightboxImg').src = '';
+        }
+
+        async function handleAssetUpload(file) {
+            if (!state.modalAssetType || !state.modalAssetId) return;
+            const formData = new FormData();
+            formData.append('files', file);
+            setStatus(tr('上传中…', 'Uploading…'));
+            try {
+                const res = await fetch('/api/ai/upload', { method: 'POST', body: formData });
+                if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+                const data = await res.json();
+                const uploadedUrl = data.files?.[0]?.url;
+                if (!uploadedUrl) throw new Error('No URL returned');
+                const assetType = state.modalAssetType;
+                const assetId = state.modalAssetId;
+                const savedCharType = state.modalCharType;
+                // Route upload to correct field based on active tab
+                let urlField;
+                if (assetType === 'character') {
+                    urlField = savedCharType === 'character_headshot' ? 'image_url' : 'full_body_image_url';
+                } else {
+                    urlField = 'image_url';
+                }
+                const patchType = assetType === 'character' ? savedCharType : assetType;
+                const project = await api(`/api/comic/projects/${projectId}/assets/${patchType}/${assetId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ [urlField]: uploadedUrl })
+                });
+                hydrateProject(project);
+                setStatus(tr('上传成功。', 'Uploaded.'), 'success');
+                // Refresh modal content without resetting UI state
+                const asset = getAssetByTypeAndId(assetType, assetId);
+                if (asset) {
+                    const newUrl = selectedUrl(asset, savedCharType);
+                    refreshAssetModalImage(newUrl, asset.name || '');
+                    renderVariantStrip(asset, savedCharType);
+                }
+                if (state.activeStep === 3) renderStep3();
+            } catch (error) {
+                setStatus(error.message || tr('上传失败', 'Upload failed'), 'error');
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function tr(zh, en) {
+            return state.lang === 'en' ? (en || zh) : zh;
+        }
+
+        function getAssetCollection(assetType) {
+            const map = {
+                character: 'characters',
+                character_headshot: 'characters',
+                scene: 'scenes',
+                prop: 'props'
+            };
+            return map[assetType] || null;
+        }
+
+        function getAssetByTypeAndId(assetType, assetId) {
+            const collection = getAssetCollection(assetType);
+            if (!collection || !state.project) return null;
+            return (state.project[collection] || []).find(item => item.id === assetId) || null;
+        }
+
+        function setAssetModalEditing(editing) {
+            state.modalDescEditing = editing;
+            if (editing && !state.modalDescOpen) {
+                state.modalDescOpen = true;
+                document.getElementById('assetModalDescBody').style.display = '';
+                document.getElementById('assetModalDescArrow').textContent = '▼';
+                document.getElementById('assetModalDescToggle').setAttribute('aria-expanded', 'true');
+            }
+            assetModalDescView.style.display = editing ? 'none' : '';
+            assetModalDescEdit.style.display = editing ? '' : 'none';
+            assetModalDescEditBtn.style.color = editing ? 'var(--text)' : '';
+        }
+
+        function syncAssetModalTexts() {
+            assetModalDescLabel.textContent = tr('描述', 'Description');
+            document.getElementById('assetModalDescSave').textContent = tr('保存', 'Save');
+            document.getElementById('assetModalDescCancel').textContent = tr('取消', 'Cancel');
+            assetModalRegenBtn.textContent = tr('↺ 重新生成', '↺ Regenerate');
+            document.getElementById('assetModalDoneBtn').textContent = tr('✓ 完成', '✓ Done');
+        }
+
+        function renderVariantStrip(asset, assetType) {
+            const strip = document.getElementById('variantStrip');
+            const isHeadshot = assetType === 'character_headshot';
+            const isThreeView = assetType === 'character_three_view';
+            const variants = (isThreeView ? asset.three_view_variants : isHeadshot ? asset.headshot_variants : asset.variants) || [];
+            const sid = isThreeView ? asset.three_view_selected_variant_id : isHeadshot ? asset.headshot_selected_variant_id : asset.selected_variant_id;
+            if (variants.length <= 1) { strip.innerHTML = ''; return; }
+            strip.innerHTML = variants.map(v => `
+                <div class="variant-thumb${v.id === sid ? ' selected' : ''}" data-vid="${escapeHtml(v.id)}">
+                    <img src="${escapeHtml(v.url)}" alt="">
+                    <button class="v-del" data-del-vid="${escapeHtml(v.id)}" title="${tr('删除','Delete')}">×</button>
+                    <button class="v-fav" data-fav-vid="${escapeHtml(v.id)}" title="${tr('收藏','Favorite')}">${v.is_favorited ? '⭐' : '☆'}</button>
+                </div>`).join('');
+        }
+
+        function refreshAssetModalImage(url, altText) {
+            const assetModalImgEl = document.getElementById('assetModalImg');
+            const uploadLabel = url ? tr('⬆ 上传替换 / Upload', '⬆ Upload replacement') : tr('⬆ 上传图片 / Upload', '⬆ Upload image');
+            if (url) {
+                assetModalImgEl.innerHTML = `
+                    <img src="${escapeHtml(url)}" alt="${escapeHtml(altText || '')}" id="assetModalMainImg">
+                    <button class="asset-modal-upload-btn" id="assetModalUploadBtn">${uploadLabel}</button>`;
+                document.getElementById('assetModalMainImg').addEventListener('click', () => openLightbox(url));
+            } else {
+                assetModalImgEl.innerHTML = `
+                    <span>${escapeHtml(altText || '')}</span>
+                    <button class="asset-modal-upload-btn" id="assetModalUploadBtn">${uploadLabel}</button>`;
+            }
+            document.getElementById('assetModalUploadBtn').addEventListener('click', () => {
+                const input = document.getElementById('assetUploadInput');
+                input.value = '';
+                input.click();
+            });
+        }
+
+        function selectedUrl(asset, assetType) {
+            const isHeadshot = assetType === 'character_headshot';
+            const isThreeView = assetType === 'character_three_view';
+            const variants = (isThreeView ? asset.three_view_variants : isHeadshot ? asset.headshot_variants : asset.variants) || [];
+            const sid = isThreeView ? asset.three_view_selected_variant_id : isHeadshot ? asset.headshot_selected_variant_id : asset.selected_variant_id;
+            if (sid) {
+                const v = variants.find(v => v.id === sid);
+                if (v) return v.url;
+            }
+            return variants.length ? variants[variants.length - 1].url : '';
+        }
+
+        function openAssetModal(assetType, assetId) {
+            const asset = getAssetByTypeAndId(assetType, assetId);
+            if (!asset) return;
+            state.modalAssetType = assetType;
+            state.modalAssetId = assetId;
+            const modalEl = document.querySelector('.asset-modal');
+            const legacyLeft = document.querySelector('.asset-modal-left');
+            const legacyRight = document.querySelector('.asset-modal-right');
+            const cwEl = document.getElementById('charWorkbench');
+            if (assetType === 'character') {
+                legacyLeft.classList.add('hidden');
+                legacyRight.classList.add('hidden');
+                cwEl.classList.remove('hidden');
+                modalEl.classList.add('cw-mode');
+                openCharWorkbench(asset);
+                assetModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                document.getElementById('appRoot').inert = true;
+                return;
+            }
+            legacyLeft.classList.remove('hidden');
+            legacyRight.classList.remove('hidden');
+            cwEl.classList.add('hidden');
+            modalEl.classList.remove('cw-mode');
+            const imageUrl = selectedUrl(asset, assetType);
+            const config = {
+                character: { imageUrl, placeholder: '👤', badge: tr('角色', 'Character') },
+                scene:     { imageUrl, placeholder: '🖼️', badge: tr('场景', 'Scene') },
+                prop:      { imageUrl, placeholder: '🎭', badge: tr('道具', 'Prop') }
+            }[assetType];
+            if (!config) return;
+            syncAssetModalTexts();
+
+            refreshAssetModalImage(config.imageUrl, config.imageUrl ? asset.name : config.placeholder);
+            renderVariantStrip(asset, assetType);
+
+            assetModalTitle.textContent = asset.name || tr('未命名', 'Untitled');
+            assetModalDescLabel.textContent = tr('描述', 'Description');
+            assetModalDescView.textContent = asset.description || tr('暂无描述', 'No description yet');
+            assetModalDescTextarea.value = asset.description || '';
+            assetModalBadge.textContent = config.badge;
+
+            // Prompt editor: fill from asset's prompt field; headshot tab handled by syncAssetModalCharTabs
+            const strictlyMaintainPrefix = 'STRICTLY MAINTAIN the SAME character appearance, face, hairstyle, skin tone, and clothing as the reference image. ';
+            const hasUploadedSource = (asset.variants || []).some(v => v.is_uploaded_source);
+            const savedPrompt = asset.prompt || '';
+            if (hasUploadedSource && !savedPrompt.startsWith(strictlyMaintainPrefix)) {
+                assetModalPrompt.value = strictlyMaintainPrefix + savedPrompt;
+            } else {
+                assetModalPrompt.value = savedPrompt;
+            }
+
+            // Ref image badge
+            const refBadge = document.getElementById('refImageBadge');
+            const refThumb = document.getElementById('refImageThumb');
+            if (hasUploadedSource) {
+                const refVariant = (asset.variants || []).find(v => v.is_uploaded_source);
+                refThumb.src = refVariant?.url || '';
+                refBadge.classList.remove('hidden');
+            } else {
+                refBadge.classList.add('hidden');
+            }
+
+            // Art direction collapsible panel
+            const artDirection = state.project?.art_direction || {};
+            const stylePrompt = artDirection.style_prompt || '';
+            const styleNeg = artDirection.style_negative_prompt || '';
+            const hasStyle = !!(stylePrompt || styleNeg);
+            document.getElementById('assetModalStyleSection').style.display = hasStyle ? '' : 'none';
+            artDirPositive.textContent = stylePrompt || '(无)';
+            artDirNegative.textContent = styleNeg || '(无)';
+            state.modalArtDirectionOpen = false;
+            artDirectionBody.style.display = 'none';
+            artDirectionArrow.textContent = '▶';
+            document.getElementById('artDirectionHeader').setAttribute('aria-expanded', 'false');
+
+            state.modalDescOpen = false;
+            document.getElementById('assetModalDescBody').style.display = 'none';
+            document.getElementById('assetModalDescArrow').textContent = '▶';
+            document.getElementById('assetModalDescToggle').setAttribute('aria-expanded', 'false');
+
+            assetModalApplyStyle.checked = state.modalApplyStyle;
+            assetModalNegativePrompt.value = state.modalNegativePrompt;
+            assetModalAdvancedBody.style.display = state.modalAdvancedOpen ? '' : 'none';
+            assetModalAdvancedArrow.textContent = state.modalAdvancedOpen ? '▼' : '▶';
+            document.getElementById('assetModalAdvancedToggle').setAttribute('aria-expanded', state.modalAdvancedOpen ? 'true' : 'false');
+            assetModalCharTabs.style.display = assetType === 'character' ? 'block' : 'none';
+            state.modalCharType = assetType === 'character_headshot' ? 'character_headshot' : 'character';
+            state.modalAssetType = assetType;
+            state.modalAssetId = assetId;
+            syncAssetModalCharTabs();
+
+            // Batch size row
+            state.modalBatchSize = 1;
+            const batchRow = document.getElementById('assetModalBatchRow');
+            batchRow.style.display = 'flex';
+            syncBatchSizeBtns();
+
+            // B1: show "参考当前图" checkbox only when there's an existing image
+            const useRefLabel = document.getElementById('useRefLabel');
+            const useRefCheckbox = document.getElementById('useCurrentAsRef');
+            useRefCheckbox.checked = false;
+            useRefLabel.style.display = imageUrl ? 'flex' : 'none';
+
+            setAssetModalEditing(false);
+            assetModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            document.getElementById('appRoot').inert = true;
+        }
+
+        function renderColVariantStrip(stripEl, variants, selectedId, assetType) {
+            if (!variants || variants.length <= 1) { stripEl.innerHTML = ''; return; }
+            stripEl.innerHTML = variants.map(v => `
+                <div class="variant-thumb${v.id === selectedId ? ' selected' : ''}" data-vid="${escapeHtml(v.id)}" data-cw-asset-type="${assetType}">
+                    <img src="${escapeHtml(v.url)}" alt="">
+                    <button class="v-del" data-del-vid="${escapeHtml(v.id)}" title="${tr('删除','Delete')}">×</button>
+                    <button class="v-fav" data-fav-vid="${escapeHtml(v.id)}" title="${tr('收藏','Favorite')}">${v.is_favorited ? '⭐' : '☆'}</button>
+                </div>`).join('');
+        }
+
+        function openCharWorkbench(asset) {
+            document.getElementById('cwTitle').textContent = asset.name || tr('未命名', 'Untitled');
+            state.modalAssetId = asset.id;
+            state.modalAssetType = 'character';
+            const hasFullBody = !!(asset.full_body_image_url || (asset.variants && asset.variants.length));
+            const isLocked = !!asset.locked;
+            // Full Body
+            const fbUrl = selectedUrl(asset, 'character');
+            document.getElementById('cwImgFullBody').innerHTML = fbUrl ? `<img src="${escapeHtml(fbUrl)}" alt="${escapeHtml(asset.name)}">` : '<span style="font-size:48px;opacity:.3;">👤</span>';
+            renderColVariantStrip(document.getElementById('cwVarFullBody'), asset.variants || [], asset.selected_variant_id, 'character');
+            document.getElementById('cwPromptFullBody').value = asset.prompt || '';
+            // Three View
+            const tvUrl = selectedUrl(asset, 'character_three_view');
+            document.getElementById('cwImgThreeView').innerHTML = tvUrl ? `<img src="${escapeHtml(tvUrl)}" alt="${escapeHtml(asset.name)}">` : '<span style="font-size:48px;opacity:.3;">📐</span>';
+            renderColVariantStrip(document.getElementById('cwVarThreeView'), asset.three_view_variants || [], asset.three_view_selected_variant_id, 'character_three_view');
+            document.getElementById('cwPromptThreeView').value = asset.three_view_prompt || '';
+            // Headshot
+            const hsUrl = selectedUrl(asset, 'character_headshot');
+            document.getElementById('cwImgHeadshot').innerHTML = hsUrl ? `<img src="${escapeHtml(hsUrl)}" alt="${escapeHtml(asset.name)}">` : '<span style="font-size:48px;opacity:.3;">🖼️</span>';
+            renderColVariantStrip(document.getElementById('cwVarHeadshot'), asset.headshot_variants || [], asset.headshot_selected_variant_id, 'character_headshot');
+            document.getElementById('cwPromptHeadshot').value = asset.headshot_prompt || '';
+            // Conditional lock: TV/HS locked when no full body
+            document.querySelectorAll('.cw-col').forEach(col => {
+                const type = col.dataset.cwType;
+                let showLock = false;
+                if ((type === 'character_three_view' || type === 'character_headshot') && !hasFullBody) showLock = true;
+                if (isLocked) showLock = true;
+                let overlay = col.querySelector('.cw-lock-overlay');
+                if (showLock) {
+                    if (!overlay) { overlay = document.createElement('div'); overlay.className = 'cw-lock-overlay'; col.style.position = 'relative'; col.appendChild(overlay); }
+                    overlay.innerHTML = isLocked ? '🔒 Locked' : '🔒 Generate Full Body first';
+                } else if (overlay) { overlay.remove(); }
+            });
+            // Manual lock button
+            const lockBtn = document.getElementById('cwLockBtn');
+            if (lockBtn) lockBtn.textContent = isLocked ? '🔓 Unlock' : '🔒 Lock';
+        }
+
+        // Batch selector toggle
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.batch-btn');
+            if (!btn) return;
+            btn.parentElement.querySelectorAll('.batch-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+
+        // Char Workbench upload buttons
+        let cwUploadType = '';
+        document.getElementById('charWorkbench').addEventListener('click', (e) => {
+            const uploadBtn = e.target.closest('[data-cw-upload]');
+            if (uploadBtn) {
+                cwUploadType = uploadBtn.dataset.cwUpload;
+                document.getElementById('cwUploadInput').click();
+            }
+        });
+        document.getElementById('cwUploadInput').addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            if (!file || !cwUploadType || !state.modalAssetId) return;
+            e.target.value = '';
+            const formData = new FormData();
+            formData.append('files', file);
+            const uploadBtn = document.querySelector(`[data-cw-upload="${cwUploadType}"]`);
+            if (uploadBtn) { uploadBtn.textContent = '⏳'; uploadBtn.disabled = true; }
+            try {
+                const res = await fetch('/api/ai/upload', { method: 'POST', body: formData });
+                if (!res.ok) throw new Error('Upload failed');
+                const data = await res.json();
+                const url = data.files?.[0]?.url;
+                if (!url) throw new Error('No URL');
+                const urlField = cwUploadType === 'character' ? 'full_body_image_url' : 'image_url';
+                const project = await api(`/api/comic/projects/${projectId}/assets/${cwUploadType}/${state.modalAssetId}`, {
+                    method: 'PATCH', body: JSON.stringify({ [urlField]: url })
+                });
+                hydrateProject(project);
+                const asset = getAssetByTypeAndId('character', state.modalAssetId);
+                if (asset) openCharWorkbench(asset);
+                renderStep3();
+            } catch (err) { setStatus(err.message, 'error'); }
+            finally { if (uploadBtn) { uploadBtn.textContent = '📎'; uploadBtn.disabled = false; } }
+        });
+
+        // Char Workbench event delegation
+        document.getElementById('charWorkbench').addEventListener('click', async (e) => {
+            const genBtn = e.target.closest('[data-cw-gen]');
+            if (genBtn) {
+                const cwType = genBtn.dataset.cwGen;
+                const col = genBtn.closest('.cw-col');
+                const promptEl = col.querySelector('.cw-col-prompt');
+                const prompt = promptEl ? promptEl.value : '';
+                const batchEl = col.querySelector('.batch-sel .batch-btn.active');
+                const batchSize = batchEl ? parseInt(batchEl.dataset.batch || '1') : 1;
+                const pid = state.project.id;
+                const assetId = state.modalAssetId;
+                genBtn.disabled = true;
+                genBtn.textContent = batchSize > 1 ? `⏳ 生成${batchSize}张...` : '⏳...';
+                let stopCwPoll = null;
+                const cancelCwBtn = document.getElementById('cwCancelBtn');
+                if (cancelCwBtn) {
+                    cancelCwBtn.style.display = 'inline-block';
+                    cancelCwBtn._taskId = null;
+                }
+                try {
+                    const { _task_id } = await api(`/api/comic/projects/${pid}/regenerate_asset`, {
+                        method: 'POST',
+                        body: JSON.stringify({ asset_type: cwType, asset_id: assetId, prompt, apply_style: document.getElementById('cwApplyStyle').checked, negative_prompt: document.getElementById('cwNegativePrompt').value, batch_size: batchSize })
+                    });
+                    if (cancelCwBtn) cancelCwBtn._taskId = _task_id;
+                    await new Promise((resolve) => {
+                        stopCwPoll = pollTask(_task_id, {
+                            onProgress: (n, t) => { genBtn.textContent = `⏳ ${n}/${t}`; },
+                            onComplete: (result) => {
+                                if (result?.project) {
+                                    state.project = result.project;
+                                    const asset = getAssetByTypeAndId('character', assetId);
+                                    if (asset) openCharWorkbench(asset);
+                                    renderStep3();
+                                }
+                                resolve();
+                            },
+                            onError: (err) => { setStatus(err, 'error'); resolve(); },
+                            onCancelled: () => resolve(),
+                        });
+                    });
+                } finally {
+                    if (stopCwPoll) stopCwPoll();
+                    genBtn.disabled = false;
+                    genBtn.textContent = '↺ Generate';
+                    if (cancelCwBtn) { cancelCwBtn.style.display = 'none'; cancelCwBtn._taskId = null; }
+                }
+                return;
+            }
+            const cancelCwBtnEl = e.target.closest('#cwCancelBtn');
+            if (cancelCwBtnEl && cancelCwBtnEl._taskId) {
+                api(`/api/tasks/${cancelCwBtnEl._taskId}/cancel`, { method: 'POST' }).catch(() => {});
+                return;
+            }
+            const thumb = e.target.closest('.variant-thumb');
+            if (thumb && !e.target.closest('.v-del') && !e.target.closest('.v-fav')) {
+                const vid = thumb.dataset.vid;
+                const cwType = thumb.dataset.cwAssetType;
+                const pid = state.project.id;
+                const assetId = state.modalAssetId;
+                const resp = await fetch(`/api/comic/projects/${pid}/assets/${cwType}/${assetId}/variants/${vid}/select`, { method: 'POST' });
+                if (resp.ok) {
+                    state.project = await resp.json();
+                    const asset = getAssetByTypeAndId('character', assetId);
+                    if (asset) openCharWorkbench(asset);
+                    renderStep3();
+                }
+                return;
+            }
+            const delBtn = e.target.closest('.v-del');
+            if (delBtn) {
+                const vid = delBtn.dataset.delVid;
+                const cwType = delBtn.closest('.variant-thumb').dataset.cwAssetType;
+                const pid = state.project.id;
+                const assetId = state.modalAssetId;
+                const resp = await fetch(`/api/comic/projects/${pid}/assets/${cwType}/${assetId}/variants/${vid}`, { method: 'DELETE' });
+                if (resp.ok) {
+                    state.project = await resp.json();
+                    const asset = getAssetByTypeAndId('character', assetId);
+                    if (asset) openCharWorkbench(asset);
+                    renderStep3();
+                }
+                return;
+            }
+            const favBtn = e.target.closest('.v-fav');
+            if (favBtn) {
+                const vid = favBtn.dataset.favVid;
+                const cwType = favBtn.closest('.variant-thumb').dataset.cwAssetType;
+                const pid = state.project.id;
+                const assetId = state.modalAssetId;
+                const resp = await fetch(`/api/comic/projects/${pid}/assets/${cwType}/${assetId}/variants/${vid}/favorite`, { method: 'POST' });
+                if (resp.ok) {
+                    state.project = await resp.json();
+                    const asset = getAssetByTypeAndId('character', assetId);
+                    if (asset) openCharWorkbench(asset);
+                    renderStep3();
+                }
+                return;
+            }
+        });
+        document.getElementById('cwClose').addEventListener('click', closeAssetModal);
+        document.getElementById('cwLockBtn').addEventListener('click', async () => {
+            if (!state.modalAssetId) return;
+            try {
+                const project = await api(`/api/comic/projects/${projectId}/assets/character/${state.modalAssetId}/toggle-lock`, { method: 'POST' });
+                hydrateProject(project);
+                const asset = getAssetByTypeAndId('character', state.modalAssetId);
+                if (asset) openCharWorkbench(asset);
+                renderStep3();
+            } catch (err) { setStatus(err.message, 'error'); }
+        });
+        // Motion placeholder: disabled buttons show toast
+        document.getElementById('charWorkbench').addEventListener('click', (e) => {
+            if (e.target.closest('.cw-motion-btn')) { alert(tr('Motion 功能即将推出', 'Motion coming soon')); }
+        });
+        document.getElementById('assetModalTabs').addEventListener('click', (e) => {
+            const tab = e.target.closest('[data-tab="video"]');
+            if (tab) { alert(tr('Motion 功能即将推出', 'Motion coming soon')); }
+        });
+
+        function closeAssetModal() {
+            assetModal.classList.add('hidden');
+            document.body.style.overflow = '';
+            document.getElementById('appRoot').inert = false;
+            setAssetModalEditing(false);
+        }
+
+        function setStatus(text, kind = '') {
+            state.status = { text, kind };
+            const el = document.getElementById('statusLine');
+            if (!el) return;
+            el.setAttribute('aria-live', 'polite');
+            el.textContent = text;
+            el.className = `status ${kind}`.trim();
+        }
+
+        async function api(path, options = {}) {
+            const res = await fetch(path, {
+                headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+                ...options
+            });
+            if (!res.ok) {
+                let message = `Request failed: ${res.status}`;
+                try {
+                    const data = await res.json();
+                    message = data.detail || data.message || message;
+                } catch (e) {}
+                throw new Error(message);
+            }
+            return res.json();
+        }
+
+        async function loadProject() {
+            if (!projectId) {
+                renderNotFound(tr('缺少项目 ID', 'Missing project ID'));
+                return;
+            }
+            try {
+                const [projectResult, configResult] = await Promise.allSettled([
+                    api(`/api/comic/projects/${projectId}`),
+                    api('/api/config'),
+                ]);
+                if (projectResult.status === 'rejected') {
+                    throw projectResult.reason;
+                }
+                if (configResult.status === 'fulfilled') {
+                    state.imageModels = configResult.value.image_models || [];
+                } else {
+                    state.imageModels = [];
+                }
+                hydrateProject(projectResult.value);
+                render();
+            } catch (error) {
+                renderNotFound(error.message || tr('项目不存在', 'Project not found'));
+            }
+        }
+
+        function hydrateProject(project) {
+            project.characters = Array.isArray(project.characters) ? project.characters : [];
+            project.scenes = Array.isArray(project.scenes) ? project.scenes : [];
+            project.props = Array.isArray(project.props) ? project.props : [];
+            project.art_direction = project.art_direction || {};
+            state.project = project;
+            state.scriptText = project.original_text || '';
+            state.draftTitle = project.title || tr('未命名项目', 'Untitled Project');
+            const styleName = project.art_direction.style_name || '';
+            const matchedPreset = presets.find(item => item.id === styleName || item.name === styleName);
+            state.presetId = matchedPreset ? matchedPreset.id : (state.presetId || '');
+            state.customStylePrompt = project.art_direction.style_prompt || '';
+            state.customNegativePrompt = project.art_direction.style_negative_prompt || '';
+            state.selectedImageModel = project.art_direction.image_model || '';
+            state.aspectRatio = project.art_direction.aspect_ratio && Object.keys(project.art_direction.aspect_ratio).length > 0
+                ? project.art_direction.aspect_ratio
+                : { character: '1:1', scene: '16:9', prop: '1:1' };
+        }
+
+        function renderStepTabs() {
+            stepTabs.innerHTML = steps.map(step => `
+                <button class="step-tab ${state.activeStep === step.id ? 'active' : ''}" type="button" data-step="${step.id}">
+                    ${step.label}
+                </button>
+            `).join('');
+        }
+
+        function renderTitle() {
+            projectTitle.textContent = state.draftTitle || tr('未命名项目', 'Untitled Project');
+            projectTitle.classList.remove('editing');
+            projectTitle.removeAttribute('contenteditable');
+        }
+
+        function renderNotFound(message) {
+            renderStepTabs();
+            sidePanel.classList.add('hidden');
+            contentPanel.innerHTML = `
+                <div class="not-found">
+                    <div class="empty-card">
+                        <h2 class="preset-name">${tr('项目不可用', 'Project unavailable')}</h2>
+                        <p class="muted">${escapeHtml(message)}</p>
+                    </div>
+                </div>
+            `;
+            projectTitle.textContent = tr('项目编辑器', 'Project Editor');
+        }
+
+        function renderComingSoon() {
+            sidePanel.classList.add('hidden');
+            contentPanel.innerHTML = `
+                <div class="coming-soon">
+                    <div class="coming-card">
+                        <h2 class="preset-name">${tr('Coming Soon', 'Coming Soon')}</h2>
+                        <p class="muted">${tr('该阶段将在后续版本开放。', 'This step will be available in a later phase.')}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStep1() {
+            sidePanel.classList.remove('hidden');
+            contentPanel.innerHTML = `
+                <div class="section-head">
+                    <div>
+                        <div class="section-title">${tr('脚本输入', 'Script Input')}</div>
+                        <div class="muted">${tr('输入原始剧情文本并让 AI 拆分角色、场景和道具。', 'Paste source story text and let AI extract characters, scenes, and props.')}</div>
+                    </div>
+                </div>
+                <textarea id="scriptTextarea" class="script-textarea" placeholder="${tr('在此输入小说或剧本文本…', 'Paste novel or screenplay text here…')}">${escapeHtml(state.scriptText)}</textarea>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <div id="statusLine" class="status ${state.status.kind}">${escapeHtml(state.status.text)}</div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        ${(() => { const p = state.project || {}; const hasEntities = ((p.characters||[]).length + (p.scenes||[]).length + (p.props||[]).length) > 0; return hasEntities ? `<button id="syncDescBtn" class="ghost-btn" type="button" ${state.syncingDesc ? 'disabled' : ''}>${state.syncingDesc ? '<span class="spinner"></span>' : ''} ${tr('同步描述', 'Sync Descriptions')}</button>` : ''; })()}
+                        <button id="parseBtn" class="primary-btn" type="button" ${state.parsing ? 'disabled' : ''}>
+                            ${state.parsing ? `<span class="spinner"></span>` : ''} ${tr('AI 解析', 'AI Parse')}
+                        </button>
+                    </div>
+                </div>
+            `;
+            renderSidePanel();
+        }
+
+        function renderEntitySection(kind, label, items) {
+            const collapsed = !state.expanded[kind];
+            const editing = state.editingEntity;
+            return `
+                <section class="entity-group">
+                    <button class="entity-toggle" type="button" data-toggle="${kind}">
+                        <span>${label} (${items.length})</span>
+                        <span>${collapsed ? '+' : '−'}</span>
+                    </button>
+                    <div class="entity-body ${collapsed ? 'collapsed' : ''}">
+                        <div class="chip-list">
+                            ${items.length ? items.map(item => {
+                                const isEditing = editing && editing.kind === kind && editing.id === item.id;
+                                const extraFields = kind === 'characters' ? `
+                                    <input class="field" name="age" placeholder="${tr('年龄', 'Age')}" value="${escapeHtml(item.age || '')}">
+                                    <input class="field" name="gender" placeholder="${tr('性别', 'Gender')}" value="${escapeHtml(item.gender || '')}">
+                                    <input class="field" name="clothing" placeholder="${tr('服装', 'Clothing')}" value="${escapeHtml(item.clothing || '')}">
+                                ` : '';
+                                return `
+                                <span class="chip">
+                                    <span>${escapeHtml(item.name || tr('未命名', 'Untitled'))}</span>
+                                    <button type="button" data-edit-kind="${kind}" data-id="${item.id}" title="${tr('编辑', 'Edit')}" style="background:none;border:none;cursor:pointer;padding:0 2px;font-size:11px;color:var(--muted);">✎</button>
+                                    <button type="button" data-delete-kind="${kind}" data-id="${item.id}">×</button>
+                                </span>
+                                ${isEditing ? `
+                                <form class="inline-form show" id="edit-form-${kind}-${item.id}">
+                                    <input class="field" name="name" placeholder="${tr('名称', 'Name')}" value="${escapeHtml(item.name || '')}" required>
+                                    <textarea class="field-textarea" name="description" placeholder="${tr('描述', 'Description')}">${escapeHtml(item.description || '')}</textarea>
+                                    ${extraFields}
+                                    <div style="display:flex;gap:8px;">
+                                        <button class="primary-btn" type="submit">${tr('保存', 'Save')}</button>
+                                        <button class="ghost-btn" type="button" data-cancel-edit="${kind}" data-id="${item.id}">${tr('取消', 'Cancel')}</button>
+                                    </div>
+                                </form>
+                                ` : ''}
+                                `;
+                            }).join('') : `<span class="muted">${tr('暂无内容', 'Empty')}</span>`}
+                        </div>
+                        <button class="mini-btn" type="button" data-show-form="${kind}">+ ${tr('添加', 'Add')}</button>
+                        <form class="inline-form" id="form-${kind}">
+                            <input class="field" name="name" placeholder="${tr('名称', 'Name')}" required>
+                            <textarea class="field-textarea" name="description" placeholder="${tr('描述', 'Description')}"></textarea>
+                            <div style="display:flex;gap:8px;">
+                                <button class="primary-btn" type="submit">${tr('保存', 'Save')}</button>
+                                <button class="ghost-btn" type="button" data-cancel-form="${kind}">${tr('取消', 'Cancel')}</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+            `;
+        }
+
+        function renderSidePanel() {
+            const project = state.project || { characters: [], scenes: [], props: [] };
+            sidePanel.innerHTML = [
+                renderEntitySection('characters', tr('角色', 'Characters'), project.characters),
+                renderEntitySection('scenes', tr('场景', 'Scenes'), project.scenes),
+                renderEntitySection('props', tr('道具', 'Props'), project.props)
+            ].join('');
+        }
+
+        function renderStep2() {
+            sidePanel.classList.add('hidden');
+            const customPresets = JSON.parse(localStorage.getItem('luna_custom_presets') || '[]');
+            const customPresetCards = customPresets.map(item => `
+                <article class="preset-card ${state.presetId === item.id ? 'active' : ''}" data-preset="${item.id}" style="position:relative;">
+                    <button class="preset-del-btn" data-del-preset="${item.id}" title="${tr('删除', 'Delete')}" aria-label="${tr('删除预设', 'Delete preset')}" style="position:absolute;top:6px;right:6px;background:none;border:none;cursor:pointer;font-size:12px;color:var(--muted);padding:2px 4px;line-height:1;">✕</button>
+                    <h3 class="preset-name">${escapeHtml(item.name)}</h3>
+                    <p class="preset-desc">${tr('自定义', 'Custom')}</p>
+                </article>
+            `).join('');
+            const aiSection = state.aiRecommendations.length > 0 ? `
+                <details open style="margin-top:16px;">
+                    <summary class="section-title" style="margin:0 0 8px;font-size:12px;color:var(--muted);cursor:pointer;">✨ ${tr('AI 推荐', 'AI Recommendations')}</summary>
+                    <div class="preset-grid">
+                        ${state.aiRecommendations.map(item => `
+                            <article class="preset-card ${state.presetId === item.id ? 'active' : ''}" data-preset="${item.id}" title="${escapeHtml(item.reason || '')}">
+                                <h3 class="preset-name">${escapeHtml(item.name)}</h3>
+                                <p class="preset-desc">${escapeHtml(item.description)}</p>
+                            </article>
+                        `).join('')}
+                    </div>
+                </details>
+            ` : '';
+            contentPanel.innerHTML = `
+                <div class="section-head">
+                    <div>
+                        <div class="section-title">${tr('风格方向', 'Art Direction')}</div>
+                        <div class="muted">${tr('先选一个视觉基调，再补充正负提示词。', 'Choose a visual baseline, then refine the positive and negative prompts.')}</div>
+                    </div>
+                </div>
+                <div class="preset-grid">
+                    ${presets.map(item => `
+                        <article class="preset-card ${state.presetId === item.id ? 'active' : ''}" data-preset="${item.id}">
+                            <h3 class="preset-name">${item.name}</h3>
+                            <p class="preset-desc">${escapeHtml(item.description)}</p>
+                        </article>
+                    `).join('')}
+                    ${customPresetCards}
+                </div>
+                ${aiSection}
+                <div class="form-grid">
+                    <label>
+                        <div class="section-title" style="margin-bottom:8px;">${tr('图像模型', 'Image Model')}</div>
+                        <select id="imageModelSelect" class="field-input">
+                            <option value="">${tr('全局默认', 'Global Default')}</option>
+                            ${state.imageModels.map(m => `<option value="${escapeHtml(m)}" ${state.selectedImageModel === m ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('')}
+                        </select>
+                    </label>
+                </div>
+                <div class="form-grid">
+                    <label>
+                        <div class="section-title" style="margin-bottom:8px;">${tr('风格提示词', 'Style Prompt')}</div>
+                        <textarea id="stylePrompt" class="field-textarea">${escapeHtml(state.customStylePrompt)}</textarea>
+                    </label>
+                    <label>
+                        <div class="section-title" style="margin-bottom:8px;">${tr('负面提示词', 'Negative Prompt')}</div>
+                        <textarea id="negativePrompt" class="field-textarea">${escapeHtml(state.customNegativePrompt)}</textarea>
+                    </label>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <button id="applyStyleBtn" class="primary-btn" type="button">
+                            ${state.savingStyle ? `<span class="spinner"></span>` : ''} ${tr('应用风格', 'Apply Style')}
+                        </button>
+                        <button id="analyzeStyleBtn" type="button" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:14px;" ${state.analyzingStyle ? 'disabled' : ''}>
+                            ${state.analyzingStyle ? `<span class="spinner"></span> ${tr('分析中…', 'Analyzing…')}` : `✨ ${tr('AI 推荐', 'AI Recommend')}`}
+                        </button>
+                        <button id="savePresetBtn" type="button" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:14px;" ${state.showPresetInput ? 'disabled' : ''}>
+                            💾 ${tr('保存为预设', 'Save as Preset')}
+                        </button>
+                        ${state.showPresetInput ? `<div id="presetInputRow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            <input id="presetNameInput" type="text" placeholder="${tr('预设名称', 'Preset name')}" maxlength="40" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:140px;background:var(--bg);color:var(--text);">
+                            <button id="confirmPresetBtn" type="button" style="padding:6px 12px;border-radius:6px;background:#2563eb;color:#fff;border:none;cursor:pointer;font-size:13px;">${tr('确认', 'Confirm')}</button>
+                            <button id="cancelPresetBtn" type="button" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:none;cursor:pointer;font-size:13px;">${tr('取消', 'Cancel')}</button>
+                        </div>` : ''}
+                    </div>
+                    <div id="statusLine" class="status ${state.status.kind}">${escapeHtml(state.status.text)}</div>
+                </div>
+            `;
+        }
+
+        function assetItems() {
+            const project = state.project || {};
+            const characters = (project.characters || []).map(item => ({
+                kind: tr('角色', 'Character'),
+                assetType: 'character',
+                id: item.id,
+                name: item.name,
+                description: item.description || '',
+                image: selectedUrl(item, 'character_headshot') || selectedUrl(item, 'character') || '',
+                placeholder: '👤'
+            }));
+            const scenes = (project.scenes || []).map(item => ({
+                kind: tr('场景', 'Scene'),
+                assetType: 'scene',
+                id: item.id,
+                name: item.name,
+                description: item.description || '',
+                image: selectedUrl(item, 'scene') || '',
+                placeholder: '🖼️'
+            }));
+            const props = (project.props || []).map(item => ({
+                kind: tr('道具', 'Prop'),
+                assetType: 'prop',
+                id: item.id,
+                name: item.name,
+                description: item.description || '',
+                image: selectedUrl(item, 'prop') || '',
+                placeholder: '🎭'
+            }));
+            return [...characters, ...scenes, ...props];
+        }
+
+        function ratioToSize(ratio) {
+            return { '9:16': '1024x1536', '16:9': '1536x1024', '1:1': '1024x1024' }[ratio] || '1024x1024';
+        }
+
+        function renderStep3() {
+            sidePanel.classList.add('hidden');
+            const allItems = assetItems();
+            const counts = {
+                all: allItems.length,
+                character: allItems.filter(i => i.assetType === 'character').length,
+                scene: allItems.filter(i => i.assetType === 'scene').length,
+                prop: allItems.filter(i => i.assetType === 'prop').length,
+            };
+            const tab = state.assetTab || 'all';
+            const items = tab === 'all' ? allItems : allItems.filter(i => i.assetType === tab);
+            const tabs = [
+                { id: 'all',       label: tr('全部', 'All') },
+                { id: 'character', label: tr('角色', 'Characters') },
+                { id: 'scene',     label: tr('场景', 'Scenes') },
+                { id: 'prop',      label: tr('道具', 'Props') },
+            ];
+            contentPanel.innerHTML = `
+                <div class="asset-toolbar">
+                    <div>
+                        <div class="section-title">${tr('资产总览', 'Assets')}</div>
+                        <div class="muted">${tr('批量生成角色头像、场景背景和道具。', 'Generate character headshots, scene backgrounds, and props in one pass.')}</div>
+                    </div>
+                    <button id="generateAssetsBtn" class="primary-btn" type="button" ${state.generating ? 'disabled' : ''}>
+                        ${state.generating ? `<span class="spinner"></span>` : ''} ${tr('生成全部资产', 'Generate All Assets')}
+                    </button>
+                    ${state.generating && state.generatingTaskId ? `<button id="cancelGenerateBtn" class="ghost-btn" type="button" style="margin-left:8px;">${tr('取消', 'Cancel')}</button>` : ''}
+                </div>
+                <div id="statusLine" class="status ${state.status.kind}">${escapeHtml(state.status.text)}</div>
+                <div class="gen-params-bar">
+                    <span class="gen-params-label">⚙ ${tr('生成参数', 'Gen Params')}</span>
+                    <label>${tr('角色', 'Char')}
+                        <select id="charRatioSelect">
+                            <option value="1:1" ${(state.aspectRatio?.character||'1:1')==='1:1'?'selected':''}>1:1</option>
+                            <option value="9:16" ${(state.aspectRatio?.character||'1:1')==='9:16'?'selected':''}>9:16</option>
+                            <option value="16:9" ${(state.aspectRatio?.character||'1:1')==='16:9'?'selected':''}>16:9</option>
+                        </select>
+                    </label>
+                    <label>${tr('场景', 'Scene')}
+                        <select id="sceneRatioSelect">
+                            <option value="16:9" ${(state.aspectRatio?.scene||'16:9')==='16:9'?'selected':''}>16:9</option>
+                            <option value="9:16" ${(state.aspectRatio?.scene||'16:9')==='9:16'?'selected':''}>9:16</option>
+                            <option value="1:1" ${(state.aspectRatio?.scene||'16:9')==='1:1'?'selected':''}>1:1</option>
+                        </select>
+                    </label>
+                    <label>${tr('道具', 'Prop')}
+                        <select id="propRatioSelect">
+                            <option value="1:1" ${(state.aspectRatio?.prop||'1:1')==='1:1'?'selected':''}>1:1</option>
+                            <option value="9:16" ${(state.aspectRatio?.prop||'1:1')==='9:16'?'selected':''}>9:16</option>
+                            <option value="16:9" ${(state.aspectRatio?.prop||'1:1')==='16:9'?'selected':''}>16:9</option>
+                        </select>
+                    </label>
+                    <button class="style-toggle-btn" id="styleToggleBtn">${tr('风格', 'Style')} ▾</button>
+                </div>
+                <div id="styleSummary" class="style-summary" style="display:none">
+                    ${(() => {
+                        const ad = state.project?.art_direction || {};
+                        const name = ad.style_name || tr('未命名风格', 'Unnamed Style');
+                        const prompt = (ad.style_prompt || '').slice(0, 100);
+                        return prompt
+                            ? `<div class="style-name">${escapeHtml(name)}</div><div class="style-prompt-text">${escapeHtml(prompt)}${(ad.style_prompt||'').length > 100 ? '…' : ''}</div>`
+                            : `<div class="style-name" style="color:var(--muted)">${tr('尚未配置风格，请先完成步骤 2。', 'No style configured. Complete Step 2 first.')}</div>`;
+                    })()}
+                </div>
+                <div class="asset-tabs" role="tablist">
+                    ${tabs.map(t => `
+                        <button class="asset-tab${tab === t.id ? ' active' : ''}" role="tab" aria-selected="${tab === t.id}" data-asset-tab="${t.id}">
+                            ${t.label}<span class="asset-tab-count">${counts[t.id]}</span>
+                        </button>`).join('')}
+                </div>
+                ${items.length ? `
+                    <div class="asset-grid" role="tabpanel">
+                        ${items.map(item => {
+                            const regenKey = item.assetType + ':' + item.id;
+                            const isRegen = state.regenAssets && state.regenAssets[regenKey];
+                            const regenTaskId = isRegen && typeof isRegen === 'object' ? isRegen.taskId : null;
+                            return `
+                            <article class="asset-card" data-asset-type="${item.assetType}" data-asset-id="${item.id}">
+                                <div class="asset-preview">
+                                    ${item.image ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}">` : `<span>${item.placeholder}</span>`}
+                                    ${isRegen ? `<div class="asset-regen-overlay"><span class="spinner"></span></div>` : ''}
+                                </div>
+                                <div class="asset-meta">
+                                    <div>
+                                        <p class="asset-name">${escapeHtml(item.name || tr('未命名', 'Untitled'))}</p>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:6px;">
+                                        ${tab === 'all' ? `<span class="badge">${item.kind}</span>` : ''}
+                                        ${regenTaskId ? `<button class="ghost-btn" data-cancel-regen="${regenTaskId}" aria-label="${tr('取消', 'Cancel')}" title="${tr('取消', 'Cancel')}" style="font-size:12px;">${tr('取消', 'Cancel')}</button>` : `<button class="ghost-btn asset-regen-btn" data-regen-type="${item.assetType}" data-regen-id="${item.id}" aria-label="${tr('重新生成', 'Regenerate')} ${escapeHtml(item.name || '')}" title="${tr('重新生成', 'Regenerate')}" ${isRegen ? 'disabled' : ''}>↺</button>`}
+                                    </div>
+                                </div>
+                            </article>`;
+                        }).join('')}
+                    </div>
+                ` : `
+                    <div class="empty-state">
+                        <div class="empty-card">
+                            <h2 class="preset-name">${allItems.length ? tr('此分类暂无资产', 'No assets in this category') : tr('还没有可生成的资产', 'No assets to generate yet')}</h2>
+                            <p class="muted">${allItems.length ? tr('切换到其他分类查看。', 'Switch to another tab.') : tr('先完成脚本解析并应用风格。', 'Complete script parsing and apply an art direction first.')}</p>
+                        </div>
+                    </div>
+                `}
+            `;
+        }
+
+        function renderFrameList() {
+            const project = state.project || {};
+            const frames = project.frames || [];
+            if (!frames.length) {
+                return `<div class="empty-state"><div class="empty-card"><h2 class="preset-name">${tr('还没有分镜', 'No frames yet')}</h2><p class="muted">${tr('点击"AI 生成分镜"或手动添加。', 'Click AI Generate or add manually.')}</p></div></div>`;
+            }
+            return frames.map((frame, idx) => `
+                <div class="frame-card ${state.selectedFrameId === frame.id ? 'selected' : ''}" data-frame-id="${frame.id}">
+                    <div class="frame-preview">
+                        ${frame.image_url ? `<img src="${frame.image_url}" alt="frame ${idx+1}">` : `<div class="no-img">${tr('未生成', 'No image')}</div>`}
+                        <span class="frame-num">#${idx+1}</span>
+                    </div>
+                    <div class="frame-body">
+                        <div class="frame-action">${escapeHtml(frame.action_description || '')}</div>
+                        ${frame.dialogue ? `<div class="frame-dialogue">"${escapeHtml(frame.dialogue)}"</div>` : ''}
+                        <div class="frame-meta">
+                            ${frame.camera_movement ? `<span class="cam-badge">${escapeHtml(frame.camera_movement)}</span>` : ''}
+                        </div>
+                        <div class="frame-actions">
+                            ${(state.renderingFrames && state.renderingFrames[frame.id])
+                                ? (typeof state.renderingFrames[frame.id] === 'object'
+                                    ? `<button class="render-btn" data-cancel-render="${state.renderingFrames[frame.id].taskId}">${tr('取消', 'Cancel')}</button>`
+                                    : `<button class="render-btn" disabled><span class="spinner" style="width:10px;height:10px;"></span></button>`)
+                                : `<button class="render-btn" data-render-frame="${frame.id}">${tr('生成图片', 'Render')}</button>`}
+                            ${idx > 0 ? `<button class="render-btn" data-move-frame="${frame.id}" data-dir="up">↑</button>` : ''}
+                            ${idx < frames.length-1 ? `<button class="render-btn" data-move-frame="${frame.id}" data-dir="down">↓</button>` : ''}
+                            <button class="danger-btn" data-delete-frame="${frame.id}">${tr('删除', 'Delete')}</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderStep4() {
+            if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+            sidePanel.classList.add('hidden');
+            const project = state.project || {};
+            const frames = project.frames || [];
+            contentPanel.innerHTML = `
+                <div class="asset-toolbar">
+                    <div>
+                        <div class="section-title">${tr('分镜编辑', 'Storyboard')}</div>
+                        <div class="muted">${tr('共', 'Total')} ${frames.length} ${tr('个分镜', 'frames')}</div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button id="analyzeStoryboardBtn" class="primary-btn" type="button">${tr('AI 生成分镜', 'AI Generate')}</button>
+                        <button id="addFrameBtn" class="ghost-btn" type="button">${tr('+ 添加分镜', '+ Add Frame')}</button>
+                    </div>
+                </div>
+                <div id="statusLine" class="status ${state.status.kind}">${escapeHtml(state.status.text)}</div>
+                <div id="addFrameForm" class="inline-form" style="border:1px solid var(--border);border-radius:14px;padding:14px;">
+                    <textarea class="field-textarea" id="newFrameAction" placeholder="${tr('动作描述', 'Action description')}" style="min-height:60px;"></textarea>
+                    <input class="field" id="newFrameDialogue" placeholder="${tr('对话（可选）', 'Dialogue (optional)')}" type="text">
+                    <input class="field" id="newFrameCamera" placeholder="${tr('镜头运动（可选）', 'Camera movement (optional)')}" type="text">
+                    <textarea class="field-textarea" id="newFramePrompt" placeholder="${tr('图片提示词（可选）', 'Image prompt (optional)')}" style="min-height:60px;"></textarea>
+                    <div style="display:flex;gap:8px;">
+                        <button id="saveFrameBtn" class="primary-btn" type="button">${tr('保存', 'Save')}</button>
+                        <button id="cancelFrameBtn" class="ghost-btn" type="button">${tr('取消', 'Cancel')}</button>
+                    </div>
+                </div>
+                <div id="frameList" style="display:flex;flex-direction:column;gap:12px;overflow-y:auto;flex:1;">
+                    ${renderFrameList()}
+                </div>
+            `;
+            document.getElementById('analyzeStoryboardBtn').addEventListener('click', analyzeStoryboard);
+            document.getElementById('addFrameBtn').addEventListener('click', () => {
+                const form = document.getElementById('addFrameForm');
+                form.classList.toggle('show');
+            });
+            document.getElementById('cancelFrameBtn').addEventListener('click', () => {
+                document.getElementById('addFrameForm').classList.remove('show');
+            });
+            document.getElementById('saveFrameBtn').addEventListener('click', async () => {
+                const action = document.getElementById('newFrameAction').value.trim();
+                if (!action) return;
+                try {
+                    const result = await api(`/api/comic/projects/${projectId}/frames`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action_description: action,
+                            dialogue: document.getElementById('newFrameDialogue').value.trim(),
+                            camera_movement: document.getElementById('newFrameCamera').value.trim(),
+                            image_prompt: document.getElementById('newFramePrompt').value.trim()
+                        })
+                    });
+                    hydrateProject(result);
+                    renderStep4();
+                } catch (err) {
+                    setStatus(err.message || tr('添加失败', 'Failed'), 'error');
+                }
+            });
+            document.getElementById('frameList').addEventListener('click', async (e) => {
+                const renderBtn = e.target.closest('[data-render-frame]');
+                if (renderBtn) { await renderFrame(renderBtn.dataset.renderFrame); return; }
+                const cancelRenderBtn = e.target.closest('[data-cancel-render]');
+                if (cancelRenderBtn) {
+                    api(`/api/tasks/${cancelRenderBtn.dataset.cancelRender}/cancel`, { method: 'POST' }).catch(() => {});
+                    return;
+                }
+                const delBtn = e.target.closest('[data-delete-frame]');
+                if (delBtn) {
+                    if (!confirm(tr('确认删除此分镜？', 'Delete this frame?'))) return;
+                    try {
+                        await api(`/api/comic/projects/${projectId}/frames/${delBtn.dataset.deleteFrame}`, { method: 'DELETE' });
+                        const proj = await api(`/api/comic/projects/${projectId}`);
+                        hydrateProject(proj); renderStep4();
+                    } catch (err) { setStatus(err.message, 'error'); }
+                    return;
+                }
+                const moveBtn = e.target.closest('[data-move-frame]');
+                if (moveBtn) {
+                    const fid = moveBtn.dataset.moveFrame;
+                    const dir = moveBtn.dataset.dir;
+                    const frames = (state.project.frames || []);
+                    const idx = frames.findIndex(f => f.id === fid);
+                    if (idx < 0) return;
+                    const newOrder = frames.map(f => f.id);
+                    const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+                    if (swapIdx < 0 || swapIdx >= newOrder.length) return;
+                    [newOrder[idx], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[idx]];
+                    try {
+                        const result = await api(`/api/comic/projects/${projectId}/frames/reorder`, {
+                            method: 'POST', body: JSON.stringify({ frame_ids: newOrder })
+                        });
+                        hydrateProject(result); renderStep4();
+                    } catch (err) { setStatus(err.message, 'error'); }
+                    return;
+                }
+                const card = e.target.closest('[data-frame-id]');
+                if (card) { state.selectedFrameId = card.dataset.frameId; renderStep4(); }
+            });
+        }
+
+        function renderStep5() {
+            if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+            sidePanel.classList.add('hidden');
+            contentPanel.innerHTML = `
+                <div class="section-head">
+                    <div class="section-title">${tr('动态生成', 'Motion Generation')}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:16px;color:var(--muted);padding:60px 0;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <div style="font-size:16px;font-weight:600;opacity:0.7;">${tr('暂不可用', 'Not Available')}</div>
+                    <div style="font-size:13px;opacity:0.5;text-align:center;max-width:280px;">${tr('动态生成功能正在开发中，敬请期待。', 'Motion generation is under development.')}</div>
+                </div>
+            `;
+            return;
+            const project = state.project || {};
+            const frames = project.frames || [];
+            const videoTasks = project.video_tasks || [];
+            const hasPending = videoTasks.some(t => t.status === 'pending' || t.status === 'processing');
+            if (hasPending && !state.pollTimer) {
+                state.pollTimer = setInterval(async () => {
+                    try {
+                        const proj = await api(`/api/comic/projects/${projectId}`);
+                        hydrateProject(proj);
+                        const tasks = proj.video_tasks || [];
+                        if (!tasks.some(t => t.status === 'pending' || t.status === 'processing')) {
+                            clearInterval(state.pollTimer); state.pollTimer = null;
+                        }
+                        renderStep5();
+                    } catch (e) { clearInterval(state.pollTimer); state.pollTimer = null; }
+                }, 3000);
+            } else if (!hasPending && state.pollTimer) {
+                clearInterval(state.pollTimer); state.pollTimer = null;
+            }
+            contentPanel.innerHTML = `
+                <div class="section-head">
+                    <div>
+                        <div class="section-title">${tr('动态生成', 'Video Generation')}</div>
+                        <div class="muted">${tr('为每个分镜生成视频片段。', 'Generate video clips for each frame.')}</div>
+                    </div>
+                </div>
+                <div id="statusLine" class="status ${state.status.kind}">${escapeHtml(state.status.text)}</div>
+                <div style="display:flex;flex-direction:column;gap:16px;overflow-y:auto;flex:1;">
+                    ${frames.length ? frames.map((frame, idx) => {
+                        const frameTasks = videoTasks.filter(t => t.frame_id === frame.id);
+                        return `<div style="border:1px solid var(--border);border-radius:14px;padding:16px;background:var(--bg);">
+                            <div style="display:flex;gap:14px;margin-bottom:12px;">
+                                <div class="timeline-thumb">${frame.image_url ? `<img src="${frame.image_url}" alt="">` : ''}</div>
+                                <div style="flex:1;">
+                                    <div style="font-weight:700;margin-bottom:4px;">#${idx+1} ${escapeHtml(frame.action_description || '')}</div>
+                                    <button class="render-btn" data-gen-video="${frame.id}">${tr('生成视频', 'Generate Video')}</button>
+                                </div>
+                            </div>
+                            ${frameTasks.length ? frameTasks.map(t => `
+                                <div class="video-task ${t.status}">
+                                    <span class="status-badge ${t.status}">${t.status}</span>
+                                    ${t.message ? `<span style="font-size:12px;color:var(--muted);margin-left:8px;">${escapeHtml(t.message)}</span>` : ''}
+                                    ${t.video_url ? `<video src="${t.video_url}" controls style="width:100%;margin-top:8px;border-radius:8px;"></video>` : ''}
+                                </div>
+                            `).join('') : ''}
+                        </div>`;
+                    }).join('') : `<div class="empty-state"><div class="empty-card"><p class="muted">${tr('先在分镜步骤添加分镜。', 'Add frames in the storyboard step first.')}</p></div></div>`}
+                </div>
+            `;
+            if (state.stepListenerAbort) state.stepListenerAbort.abort();
+            state.stepListenerAbort = new AbortController();
+            contentPanel.addEventListener('click', async (e) => {
+                const btn = e.target.closest('[data-gen-video]');
+                if (!btn) return;
+                const fid = btn.dataset.genVideo;
+                btn.disabled = true;
+                try {
+                    const result = await api(`/api/comic/projects/${projectId}/frames/${fid}/generate_video`, { method: 'POST' });
+                    hydrateProject(result); renderStep5();
+                } catch (err) { setStatus(err.message, 'error'); btn.disabled = false; }
+            }, { signal: state.stepListenerAbort.signal });
+        }
+
+        function renderStep6() {
+            if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+            sidePanel.classList.add('hidden');
+            contentPanel.innerHTML = `
+                <div class="section-head">
+                    <div class="section-title">${tr('视频合成', 'Video Assembly')}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:16px;color:var(--muted);padding:60px 0;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <div style="font-size:16px;font-weight:600;opacity:0.7;">${tr('暂不可用', 'Not Available')}</div>
+                    <div style="font-size:13px;opacity:0.5;text-align:center;max-width:280px;">${tr('视频合成功能正在开发中，敬请期待。', 'Video assembly is under development.')}</div>
+                </div>
+            `;
+            return;
+            const project = state.project || {};
+            const frames = project.frames || [];
+            const videoTasks = project.video_tasks || [];
+            const videoTasksById = {};
+            videoTasks.forEach(t => { videoTasksById[t.id] = t; });
+            if (!state.selectedFrameId && frames.length) state.selectedFrameId = frames[0].id;
+            const selFrame = frames.find(f => f.id === state.selectedFrameId);
+            const selFrameTasks = selFrame ? videoTasks.filter(t => t.frame_id === selFrame.id) : [];
+            contentPanel.innerHTML = `
+                <div class="section-head">
+                    <div class="section-title">${tr('视频合成', 'Video Assembly')}</div>
+                </div>
+                <div class="assembly-layout" style="flex:1;min-height:0;">
+                    <div class="assembly-timeline">
+                        ${frames.map((frame, idx) => {
+                            const isReady = !!frame.selected_video_id;
+                            const selTask = frame.selected_video_id ? videoTasksById[frame.selected_video_id] : null;
+                            return `<div class="timeline-frame ${state.selectedFrameId === frame.id ? 'selected' : ''} ${isReady ? 'ready' : ''}" data-tl-frame="${frame.id}">
+                                <div class="timeline-thumb">
+                                    ${selTask && selTask.video_url ? `<video src="${selTask.video_url}" muted></video>` : (frame.image_url ? `<img src="${frame.image_url}" alt="">` : '')}
+                                </div>
+                                <div style="flex:1;">
+                                    <div style="font-size:13px;font-weight:700;">#${idx+1} ${escapeHtml(frame.action_description || '').slice(0,60)}</div>
+                                    ${isReady ? `<span class="status-badge completed">${tr('已选择', 'Selected')}</span>` : `<span class="status-badge pending">${tr('未选择', 'Pending')}</span>`}
+                                </div>
+                            </div>`;
+                        }).join('')}
+                        <div class="merge-bar">
+                            <button id="mergeBtn" class="primary-btn" type="button">${tr('合并视频', 'Merge Videos')}</button>
+                            <div id="statusLine" class="status ${state.status.kind}">${escapeHtml(state.status.text)}</div>
+                        </div>
+                        ${project.merged_video_url ? `
+                            <div style="margin-top:16px;">
+                                <div class="section-title" style="margin-bottom:8px;">${tr('合并结果', 'Merged Result')}</div>
+                                <video src="${project.merged_video_url}" controls style="width:100%;border-radius:12px;"></video>
+                                <a href="${project.merged_video_url}" download style="display:inline-block;margin-top:8px;font-size:13px;color:#2563eb;">${tr('下载视频', 'Download')}</a>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="assembly-variants">
+                        <div class="section-title" style="margin-bottom:12px;">${selFrame ? `#${frames.indexOf(selFrame)+1} ${tr('视频版本', 'Variants')}` : tr('选择分镜', 'Select a frame')}</div>
+                        ${selFrameTasks.length ? selFrameTasks.map(t => `
+                            <div class="video-task ${t.status}" style="margin-bottom:12px;">
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                                    <span class="status-badge ${t.status}">${t.status}</span>
+                                    ${t.status === 'completed' && t.video_url ? `<button class="render-btn" data-select-video="${t.id}" data-frame-id="${selFrame.id}">${selFrame.selected_video_id === t.id ? tr('✓ 已选', '✓ Selected') : tr('选择此版本', 'Use this')}</button>` : ''}
+                                </div>
+                                ${t.video_url ? `<video src="${t.video_url}" controls style="width:100%;border-radius:8px;"></video>` : ''}
+                                ${t.message ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">${escapeHtml(t.message)}</div>` : ''}
+                            </div>
+                        `).join('') : `<p class="muted">${tr('此分镜还没有视频版本。', 'No video variants for this frame yet.')}</p>`}
+                    </div>
+                </div>
+            `;
+            if (state.stepListenerAbort) state.stepListenerAbort.abort();
+            state.stepListenerAbort = new AbortController();
+            contentPanel.addEventListener('click', async (e) => {
+                const tlFrame = e.target.closest('[data-tl-frame]');
+                if (tlFrame) { state.selectedFrameId = tlFrame.dataset.tlFrame; renderStep6(); return; }
+                const selBtn = e.target.closest('[data-select-video]');
+                if (selBtn) {
+                    try {
+                        const result = await api(`/api/comic/projects/${projectId}/frames/${selBtn.dataset.frameId}/select_video`, {
+                            method: 'POST', body: JSON.stringify({ video_id: selBtn.dataset.selectVideo })
+                        });
+                        hydrateProject(result); renderStep6();
+                    } catch (err) { setStatus(err.message, 'error'); }
+                    return;
+                }
+                if (e.target.id === 'mergeBtn') {
+                    e.target.disabled = true;
+                    setStatus(tr('合并中…', 'Merging…'));
+                    try {
+                        const result = await api(`/api/comic/projects/${projectId}/merge_videos`, { method: 'POST' });
+                        hydrateProject(result);
+                        setStatus(tr('合并完成。', 'Merge complete.'), 'success');
+                        renderStep6();
+                    } catch (err) { setStatus(err.message, 'error'); e.target.disabled = false; }
+                }
+            }, { signal: state.stepListenerAbort.signal });
+        }
+
+        async function analyzeStoryboard() {
+            const btn = document.getElementById('analyzeStoryboardBtn');
+            if (btn) { btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> ${tr('生成中…', 'Generating…')}`; }
+            setStatus(tr('AI 正在生成分镜…', 'AI generating storyboard…'));
+            try {
+                const result = await api(`/api/comic/projects/${projectId}/analyze_storyboard`, { method: 'POST' });
+                hydrateProject(result);
+                setStatus(tr('分镜生成完成。', 'Storyboard generated.'), 'success');
+                render();
+            } catch (err) {
+                setStatus(err.message || tr('生成失败', 'Failed'), 'error');
+                if (btn) { btn.disabled = false; btn.textContent = tr('AI 生成分镜', 'AI Generate'); }
+            }
+        }
+
+        async function renderFrame(fid) {
+            if (!state.renderingFrames) state.renderingFrames = {};
+            state.renderingFrames[fid] = true;
+            setStatus(tr('渲染图片中…', 'Rendering…'));
+            render();
+            try {
+                const { _task_id } = await api(`/api/comic/projects/${projectId}/frames/${fid}/render`, { method: 'POST' });
+                state.renderingFrames[fid] = { taskId: _task_id };
+                render();
+                await new Promise((resolve) => {
+                    pollTask(_task_id, {
+                        onComplete: (result) => {
+                            hydrateProject(result.project);
+                            setStatus(tr('渲染完成。', 'Render complete.'), 'success');
+                            renderStep4();
+                            resolve();
+                        },
+                        onError: (e) => { setStatus(e, 'error'); resolve(); },
+                        onCancelled: () => { setStatus(''); resolve(); },
+                    });
+                });
+            } catch (err) {
+                setStatus(err.message || tr('渲染失败', 'Render failed'), 'error');
+            } finally {
+                delete state.renderingFrames[fid];
+                render();
+            }
+        }
+
+        function render() {
+            if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+            renderStepTabs();
+            renderTitle();
+            if (!state.project) return;
+            if (state.activeStep === 1) renderStep1();
+            else if (state.activeStep === 2) renderStep2();
+            else if (state.activeStep === 3) renderStep3();
+            else if (state.activeStep === 4) renderStep4();
+            else if (state.activeStep === 5) renderStep5();
+            else if (state.activeStep === 6) renderStep6();
+            else renderComingSoon();
+        }
+
+        function showInlineForm(kind) {
+            const form = document.getElementById(`form-${kind}`);
+            if (!form) return;
+            form.classList.add('show');
+            const input = form.querySelector('input');
+            if (input) input.focus();
+        }
+
+        function hideInlineForm(kind) {
+            const form = document.getElementById(`form-${kind}`);
+            if (!form) return;
+            form.classList.remove('show');
+            form.reset();
+        }
+
+        async function handleParse() {
+            state.parsing = true;
+            state.scriptText = document.getElementById('scriptTextarea')?.value || '';
+            setStatus(tr('解析中…', 'Parsing…'));
+            render();
+            try {
+                const project = await api(`/api/comic/projects/${projectId}/parse`, {
+                    method: 'POST',
+                    body: JSON.stringify({ text: state.scriptText })
+                });
+                hydrateProject(project);
+                state.activeStep = 2;
+                setStatus(tr('解析完成。', 'Parsing complete.'), 'success');
+                render();
+            } catch (error) {
+                state.parsing = false;
+                render();
+                setStatus(error.message || tr('解析失败', 'Parsing failed'), 'error');
+            } finally {
+                state.parsing = false;
+            }
+        }
+
+        async function handleSyncDescriptions() {
+            state.syncingDesc = true;
+            setStatus(tr('同步描述中…', 'Syncing descriptions…'));
+            render();
+            try {
+                const resp = await api(`/api/comic/projects/${projectId}/sync_descriptions`, {
+                    method: 'POST',
+                    body: JSON.stringify({ force: false })
+                });
+                const taskId = resp._task_id;
+                state.syncDescTaskId = taskId;
+                while (true) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    const task = await api(`/api/tasks/${taskId}`);
+                    if (task.status === 'completed') {
+                        const project = await api(`/api/comic/projects/${projectId}`);
+                        hydrateProject(project);
+                        const failures = (task.result && task.result.failures) || [];
+                        if (failures.length > 0) {
+                            setStatus(tr('描述同步完成，' + failures.length + ' 项失败。', 'Sync done, ' + failures.length + ' failed.'), 'warning');
+                        } else {
+                            setStatus(tr('描述同步完成。', 'Descriptions synced.'), 'success');
+                        }
+                        break;
+                    }
+                    if (task.status === 'failed') {
+                        setStatus(task.error || tr('同步失败', 'Sync failed'), 'error');
+                        break;
+                    }
+                    if (task.status === 'cancelled') {
+                        setStatus(tr('同步已取消', 'Sync cancelled'), '');
+                        break;
+                    }
+                }
+            } catch (error) {
+                setStatus(error.message || tr('同步失败', 'Sync failed'), 'error');
+            } finally {
+                state.syncingDesc = false;
+                state.syncDescTaskId = null;
+                render();
+            }
+        }
+
+        async function handleAddEntity(kind, payload) {
+            const pathMap = {
+                characters: `/api/comic/projects/${projectId}/characters`,
+                scenes: `/api/comic/projects/${projectId}/scenes`,
+                props: `/api/comic/projects/${projectId}/props`
+            };
+            const project = await api(pathMap[kind], {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            hydrateProject(project);
+            render();
+        }
+
+        async function handleDeleteEntity(kind, id) {
+            const pathMap = {
+                characters: `/api/comic/projects/${projectId}/characters/${id}`,
+                scenes: `/api/comic/projects/${projectId}/scenes/${id}`,
+                props: `/api/comic/projects/${projectId}/props/${id}`
+            };
+            const project = await api(pathMap[kind], { method: 'DELETE' });
+            hydrateProject(project);
+            render();
+        }
+
+        async function handleEditEntity(kind, id, payload) {
+            const typeMap = { characters: 'character', scenes: 'scene', props: 'prop' };
+            const assetType = typeMap[kind];
+            const project = await api(`/api/comic/projects/${projectId}/assets/${assetType}/${id}`, {
+                method: 'PATCH',
+                body: JSON.stringify(payload)
+            });
+            hydrateProject(project);
+            render();
+        }
+
+        async function handleApplyStyle() {
+            const preset = presets.find(item => item.id === state.presetId);
+            const stylePromptField = document.getElementById('stylePrompt');
+            const negativePromptField = document.getElementById('negativePrompt');
+            const imageModelField = document.getElementById('imageModelSelect');
+            state.customStylePrompt = stylePromptField?.value.trim() || '';
+            state.customNegativePrompt = negativePromptField?.value.trim() || '';
+            state.selectedImageModel = imageModelField?.value || '';
+            state.savingStyle = true;
+            setStatus(tr('保存风格中…', 'Saving style…'));
+            render();
+            try {
+                const stylePrompt = state.customStylePrompt || (preset ? preset.prompt : '');
+                const project = await api(`/api/comic/projects/${projectId}/art_direction`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        style_prompt: stylePrompt,
+                        style_negative_prompt: state.customNegativePrompt,
+                        style_name: preset ? preset.id : '',
+                        image_model: state.selectedImageModel,
+                        aspect_ratio: state.aspectRatio
+                    })
+                });
+                hydrateProject(project);
+                state.activeStep = 3;
+                setStatus(tr('风格已应用。', 'Style applied.'), 'success');
+                render();
+            } catch (error) {
+                state.savingStyle = false;
+                render();
+                setStatus(error.message || tr('保存失败', 'Save failed'), 'error');
+            } finally {
+                state.savingStyle = false;
+            }
+        }
+
+        async function handleAnalyzeStyle() {
+            state.analyzingStyle = true;
+            render();
+            try {
+                const { recommendations } = await api(`/api/comic/projects/${projectId}/art_direction/analyze`, { method: 'POST' });
+                if (!Array.isArray(recommendations) || recommendations.length !== 3) {
+                    throw new Error(tr('AI 推荐结果格式无效', 'Invalid AI recommendation response'));
+                }
+                state.aiRecommendations = recommendations.map((r, i) => {
+                    if (!r || typeof r !== 'object' || !r.positive_prompt || !r.negative_prompt) {
+                        throw new Error(tr('AI 推荐结果格式无效', 'Invalid AI recommendation response'));
+                    }
+                    return {
+                        id: `ai_${i}`,
+                        name: r.name || `Style ${i + 1}`,
+                        description: r.description || '',
+                        reason: r.reason || '',
+                        prompt: r.positive_prompt,
+                        negative: r.negative_prompt,
+                    };
+                });
+            } catch (error) {
+                setStatus(error.message || tr('AI 推荐失败', 'AI recommendation failed'), 'error');
+            } finally {
+                state.analyzingStyle = false;
+                render();
+            }
+        }
+
+        function handleSavePreset() {
+            const stylePromptField = document.getElementById('stylePrompt');
+            const negativePromptField = document.getElementById('negativePrompt');
+            const prompt = (stylePromptField?.value || state.customStylePrompt).trim();
+            if (!prompt) {
+                setStatus(tr('请先填写风格提示词', 'Please fill in the style prompt first'), 'error');
+                return;
+            }
+            state.showPresetInput = true;
+            render();
+            setTimeout(() => document.getElementById('presetNameInput')?.focus(), 0);
+        }
+
+        function doSavePreset() {
+            const stylePromptField = document.getElementById('stylePrompt');
+            const negativePromptField = document.getElementById('styleNegativePrompt');
+            const nameInput = document.getElementById('presetNameInput');
+            const name = nameInput?.value?.trim() || '';
+            if (!name) {
+                nameInput?.focus();
+                return;
+            }
+            const prompt = (stylePromptField?.value || state.customStylePrompt).trim();
+            const stored = JSON.parse(localStorage.getItem('luna_custom_presets') || '[]');
+            stored.push({
+                id: `custom_${Date.now()}`,
+                name,
+                prompt,
+                negative: (negativePromptField?.value || state.customNegativePrompt).trim(),
+            });
+            if (stored.length > 10) stored.splice(0, stored.length - 10);
+            localStorage.setItem('luna_custom_presets', JSON.stringify(stored));
+            state.showPresetInput = false;
+            render();
+        }
+
+        function pollTask(taskId, { onProgress, onComplete, onError, onCancelled, intervalMs = 2000, timeoutMs = 720000 } = {}) {
+            const start = Date.now();
+            let timer = null;
+            const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+            timer = setInterval(async () => {
+                if (Date.now() - start > timeoutMs) {
+                    stop();
+                    onError?.(tr('生成超时', 'Generation timed out'));
+                    return;
+                }
+                try {
+                    const task = await api(`/api/tasks/${taskId}`);
+                    if (task.status === 'completed') {
+                        stop();
+                        onComplete?.(task.result);
+                    } else if (task.status === 'failed') {
+                        stop();
+                        onError?.(task.error || tr('生成失败', 'Generation failed'));
+                    } else if (task.status === 'cancelled') {
+                        stop();
+                        onCancelled?.();
+                    } else {
+                        onProgress?.(task.progress, task.total);
+                    }
+                } catch (e) {
+                    stop();
+                    onError?.(e.message);
+                }
+            }, intervalMs);
+            return stop;
+        }
+
+        async function handleGenerateAssets() {
+            state.generating = true;
+            state.generatingTaskId = null;
+            setStatus(tr('生成资产中…', 'Generating assets…'));
+            render();
+            try {
+                const { _task_id } = await api(`/api/comic/projects/${projectId}/generate_assets`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        character_size: ratioToSize((state.aspectRatio || {}).character || '1:1'),
+                        scene_size: ratioToSize((state.aspectRatio || {}).scene || '16:9'),
+                        prop_size: ratioToSize((state.aspectRatio || {}).prop || '1:1'),
+                    })
+                });
+                state.generatingTaskId = _task_id;
+                render();
+                await new Promise((resolve) => {
+                    pollTask(_task_id, {
+                        onProgress: (n, t) => setStatus(tr(`生成中 ${n}/${t}…`, `Generating ${n}/${t}…`)),
+                        onComplete: (result) => {
+                            hydrateProject(result.project);
+                            const warnings = result.project._warnings;
+                            if (warnings && warnings.length) {
+                                setStatus(warnings[0], 'error');
+                            } else {
+                                setStatus(tr('资产生成完成。', 'Assets generated.'), 'success');
+                            }
+                            render();
+                            resolve();
+                        },
+                        onError: (e) => { setStatus(e, 'error'); resolve(); },
+                        onCancelled: () => { setStatus(''); resolve(); },
+                    });
+                });
+            } catch (error) {
+                setStatus(error.message || tr('生成失败', 'Generation failed'), 'error');
+            } finally {
+                state.generating = false;
+                state.generatingTaskId = null;
+                render();
+            }
+        }
+
+        async function handleRegenAsset(assetType, assetId, opts = {}) {
+            const key = assetType + ':' + assetId;
+            if (!state.regenAssets) state.regenAssets = {};
+            state.regenAssets[key] = true;
+            render();
+            const batchSize = Math.max(1, Math.min(4, opts.batchSize || 1));
+            try {
+                const ratioType = assetType === 'scene' || assetType === 'prop' ? assetType : 'character';
+                const { _task_id } = await api(`/api/comic/projects/${projectId}/regenerate_asset`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        asset_type: assetType,
+                        asset_id: assetId,
+                        apply_style: opts.applyStyle !== undefined ? opts.applyStyle : true,
+                        negative_prompt: opts.negativePrompt || '',
+                        batch_size: batchSize,
+                        prompt: opts.prompt || '',
+                        size: ratioToSize((state.aspectRatio || {})[ratioType] || (ratioType === 'scene' ? '16:9' : '1:1')),
+                        use_current_as_ref: opts.useCurrentAsRef || false
+                    })
+                });
+                state.regenAssets[key] = { taskId: _task_id };
+                render();
+                await new Promise((resolve) => {
+                    pollTask(_task_id, {
+                        onProgress: (n, t) => setStatus(tr(`生成中 ${n}/${t}…`, `Generating ${n}/${t}…`)),
+                        onComplete: (result) => {
+                            hydrateProject(result.project);
+                            if (state.activeStep === 3) renderStep3();
+                            if (!assetModal.classList.contains('hidden') && state.modalAssetType === assetType && state.modalAssetId === assetId) {
+                                const asset = getAssetByTypeAndId(assetType, assetId);
+                                const effectiveType = assetType === 'character' ? state.modalCharType : assetType;
+                                const newUrl = selectedUrl(asset, effectiveType);
+                                refreshAssetModalImage(newUrl, asset?.name || '');
+                                renderVariantStrip(asset, effectiveType);
+                            }
+                            setStatus(tr('重新生成完成。', 'Regenerated.'), 'success');
+                            resolve();
+                        },
+                        onError: (e) => { setStatus(e, 'error'); resolve(); },
+                        onCancelled: () => { setStatus(''); resolve(); },
+                    });
+                });
+            } catch (error) {
+                setStatus(error.message || tr('重新生成失败', 'Regeneration failed'), 'error');
+            } finally {
+                delete state.regenAssets[key];
+                render();
+            }
+        }
+
+        async function saveAssetModalDescription() {
+            if (!state.modalAssetType || !state.modalAssetId) return;
+            const description = assetModalDescTextarea.value;
+            const prompt = assetModalPrompt.value;
+            // For characters, route to the active tab's asset_type so backend writes the correct prompt field
+            const effectiveType = state.modalAssetType === 'character' ? state.modalCharType : state.modalAssetType;
+            const project = await api(`/api/comic/projects/${projectId}/assets/${effectiveType}/${state.modalAssetId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ description, prompt })
+            });
+            hydrateProject(project);
+            const updatedAsset = getAssetByTypeAndId(state.modalAssetType, state.modalAssetId);
+            assetModalDescView.textContent = (updatedAsset && updatedAsset.description) || tr('暂无描述', 'No description yet');
+            assetModalDescTextarea.value = (updatedAsset && updatedAsset.description) || '';
+            setAssetModalEditing(false);
+            if (state.activeStep === 3) renderStep3();
+        }
+
+        function startTitleEdit() {
+            projectTitle.classList.add('editing');
+            projectTitle.setAttribute('contenteditable', 'true');
+            projectTitle.focus();
+            document.execCommand('selectAll', false, null);
+        }
+
+        function finishTitleEdit() {
+            const newTitle = (projectTitle.textContent || '').trim() || state.draftTitle || tr('未命名项目', 'Untitled Project');
+            state.draftTitle = newTitle;
+            renderTitle();
+            if (state.project && newTitle !== state.project.title) {
+                api(`/api/comic/projects/${projectId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ title: newTitle })
+                }).then(updated => { if (updated) state.project = updated; }).catch(() => {});
+            }
+        }
+
+        function applyLanguage(lang) {
+            state.lang = lang === 'en' ? 'en' : 'zh';
+            document.documentElement.lang = state.lang === 'en' ? 'en' : 'zh-CN';
+            document.title = tr('项目编辑器', 'Project Editor');
+            syncAssetModalTexts();
+            render();
+        }
+
+        window.addEventListener('message', (event) => {
+            if (event.origin !== location.origin) return;
+            if (event.data?.type === 'studio-theme') {
+                state.theme = event.data.theme === 'dark' ? 'dark' : 'light';
+                document.body.classList.toggle('theme-dark', state.theme === 'dark');
+                document.documentElement.classList.toggle('studio-theme-dark', state.theme === 'dark');
+            }
+            if (event.data?.type === 'studio-lang') {
+                applyLanguage(event.data.lang);
+            }
+        });
+
+        document.getElementById('backBtn').addEventListener('click', () => {
+            window.parent.postMessage({ type: 'navigate', page: 'workspace' }, '*');
+        });
+
+        projectTitle.addEventListener('click', startTitleEdit);
+        projectTitle.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                finishTitleEdit();
+            }
+        });
+        projectTitle.addEventListener('blur', finishTitleEdit);
+
+        stepTabs.addEventListener('click', (event) => {
+            const tab = event.target.closest('[data-step]');
+            if (!tab) return;
+            state.activeStep = Number(tab.dataset.step);
+            setStatus('');
+            render();
+        });
+
+        contentPanel.addEventListener('click', (event) => {
+            const assetCard = event.target.closest('.asset-card');
+            if (assetCard && !event.target.closest('.asset-regen-btn')) {
+                openAssetModal(assetCard.dataset.assetType, assetCard.dataset.assetId);
+                return;
+            }
+            const assetTabBtn = event.target.closest('[data-asset-tab]');
+            if (assetTabBtn) {
+                state.assetTab = assetTabBtn.dataset.assetTab;
+                renderStep3();
+                return;
+            }
+            const styleToggleBtn = event.target.closest('#styleToggleBtn');
+            if (styleToggleBtn) {
+                const summary = document.getElementById('styleSummary');
+                if (summary) {
+                    const visible = summary.style.display !== 'none';
+                    summary.style.display = visible ? 'none' : 'block';
+                    styleToggleBtn.textContent = tr('风格', 'Style') + (visible ? ' ▾' : ' ▴');
+                }
+                return;
+            }
+            if (event.target.id === 'parseBtn') {
+                handleParse();
+            }
+            if (event.target.id === 'syncDescBtn') {
+                handleSyncDescriptions();
+            }
+            if (event.target.id === 'applyStyleBtn') {
+                handleApplyStyle();
+            }
+            if (event.target.id === 'generateAssetsBtn') {
+                handleGenerateAssets();
+            }
+            if (event.target.id === 'cancelGenerateBtn' && state.generatingTaskId) {
+                api(`/api/tasks/${state.generatingTaskId}/cancel`, { method: 'POST' }).catch(() => {});
+            }
+            const regenBtn = event.target.closest('[data-regen-type]');
+            if (regenBtn) {
+                event.stopPropagation();
+                handleRegenAsset(regenBtn.dataset.regenType, regenBtn.dataset.regenId);
+            }
+            const cancelRegenBtn = event.target.closest('[data-cancel-regen]');
+            if (cancelRegenBtn) {
+                event.stopPropagation();
+                api(`/api/tasks/${cancelRegenBtn.dataset.cancelRegen}/cancel`, { method: 'POST' }).catch(() => {});
+            }
+            if (event.target.closest('#analyzeStyleBtn')) {
+                handleAnalyzeStyle();
+                return;
+            }
+            if (event.target.closest('#savePresetBtn')) {
+                handleSavePreset();
+                return;
+            }
+            if (event.target.closest('#confirmPresetBtn')) {
+                doSavePreset();
+                return;
+            }
+            if (event.target.closest('#cancelPresetBtn')) {
+                state.showPresetInput = false;
+                render();
+                return;
+            }
+            const delPreset = event.target.closest('[data-del-preset]');
+            if (delPreset) {
+                event.stopPropagation();
+                const id = delPreset.dataset.delPreset;
+                const stored = JSON.parse(localStorage.getItem('luna_custom_presets') || '[]');
+                const updated = stored.filter(p => p.id !== id);
+                localStorage.setItem('luna_custom_presets', JSON.stringify(updated));
+                if (state.presetId === id) state.presetId = '';
+                render();
+                return;
+            }
+            const presetCard = event.target.closest('[data-preset]');
+            if (presetCard) {
+                state.presetId = presetCard.dataset.preset;
+                const allPresets = [
+                    ...presets,
+                    ...JSON.parse(localStorage.getItem('luna_custom_presets') || '[]'),
+                    ...state.aiRecommendations,
+                ];
+                const preset = allPresets.find(item => item.id === state.presetId);
+                if (preset) {
+                    state.customStylePrompt = preset.prompt;
+                    state.customNegativePrompt = preset.negative;
+                }
+                render();
+            }
+        });
+
+        document.getElementById('assetModalClose').addEventListener('click', () => {
+            closeAssetModal();
+        });
+
+        assetModal.addEventListener('click', (event) => {
+            if (event.target === assetModal) closeAssetModal();
+        });
+
+        assetModalDescEditBtn.addEventListener('click', () => {
+            setAssetModalEditing(true);
+            assetModalDescTextarea.focus();
+        });
+
+        assetModalDescView.addEventListener('click', () => {
+            if (!state.modalDescEditing) {
+                setAssetModalEditing(true);
+                assetModalDescTextarea.focus();
+            }
+        });
+
+        document.getElementById('assetModalDescCancel').addEventListener('click', () => {
+            const asset = getAssetByTypeAndId(state.modalAssetType, state.modalAssetId);
+            assetModalDescTextarea.value = asset ? (asset.description || '') : '';
+            setAssetModalEditing(false);
+        });
+
+        document.getElementById('assetModalDescSave').addEventListener('click', async () => {
+            try {
+                await saveAssetModalDescription();
+                setStatus(tr('描述已保存。', 'Description saved.'), 'success');
+            } catch (error) {
+                setStatus(error.message || tr('保存失败', 'Save failed'), 'error');
+            }
+        });
+
+        document.getElementById('assetModalApplyStyle').addEventListener('change', (e) => {
+            state.modalApplyStyle = e.target.checked;
+        });
+
+        document.getElementById('assetModalAdvancedToggle').addEventListener('click', () => {
+            state.modalAdvancedOpen = !state.modalAdvancedOpen;
+            document.getElementById('assetModalAdvancedBody').style.display = state.modalAdvancedOpen ? '' : 'none';
+            document.getElementById('assetModalAdvancedArrow').textContent = state.modalAdvancedOpen ? '▼' : '▶';
+            document.getElementById('assetModalAdvancedToggle').setAttribute('aria-expanded', state.modalAdvancedOpen ? 'true' : 'false');
+        });
+
+        document.getElementById('assetModalNegativePrompt').addEventListener('input', (e) => {
+            state.modalNegativePrompt = e.target.value;
+        });
+
+        document.getElementById('assetModalCharTabs').addEventListener('click', (e) => {
+            const tab = e.target.closest('.asset-modal-char-tab');
+            if (!tab) return;
+            state.modalCharType = tab.dataset.charType;
+            syncAssetModalCharTabs();
+        });
+
+        document.getElementById('assetModalDoneBtn').addEventListener('click', () => {
+            closeAssetModal();
+        });
+
+        // Lightbox
+        document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+        document.getElementById('lightboxOverlay').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('lightboxOverlay')) closeLightbox();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (!document.getElementById('lightboxOverlay').classList.contains('hidden')) {
+                    closeLightbox();
+                } else if (!assetModal.classList.contains('hidden')) {
+                    closeAssetModal();
+                } else if (state.showPresetInput) {
+                    state.showPresetInput = false;
+                    render();
+                }
+            }
+            if (e.key === 'Enter' && e.target?.id === 'presetNameInput') {
+                doSavePreset();
+            }
+        });
+
+        // Variant strip events
+        document.getElementById('variantStrip').addEventListener('click', async (e) => {
+            const delBtn = e.target.closest('[data-del-vid]');
+            const favBtn = e.target.closest('[data-fav-vid]');
+            const thumb  = e.target.closest('[data-vid]');
+            const pid = state.project?.id;
+            const assetId   = state.modalAssetId;
+            const assetType = state.modalAssetType === 'character' ? state.modalCharType : state.modalAssetType;
+            if (!pid || !assetType || !assetId) return;
+
+            if (delBtn) {
+                e.stopPropagation();
+                const vid = delBtn.dataset.delVid;
+                try {
+                    const updated = await api(`/api/comic/projects/${pid}/assets/${assetType}/${assetId}/variants/${vid}`, { method: 'DELETE' });
+                    state.project = updated;
+                    const asset = getAssetByTypeAndId(assetType, assetId);
+                    refreshAssetModalImage(selectedUrl(asset, assetType), asset?.name || '');
+                    renderVariantStrip(asset, assetType);
+                } catch (err) { alert(err.message); }
+                return;
+            }
+            if (favBtn) {
+                e.stopPropagation();
+                const vid = favBtn.dataset.favVid;
+                try {
+                    const updated = await api(`/api/comic/projects/${pid}/assets/${assetType}/${assetId}/variants/${vid}/favorite`, { method: 'POST' });
+                    state.project = updated;
+                    const asset = getAssetByTypeAndId(assetType, assetId);
+                    renderVariantStrip(asset, assetType);
+                } catch (err) { alert(err.message); }
+                return;
+            }
+            if (thumb) {
+                const vid = thumb.dataset.vid;
+                try {
+                    const updated = await api(`/api/comic/projects/${pid}/assets/${assetType}/${assetId}/variants/${vid}/select`, { method: 'POST' });
+                    state.project = updated;
+                    const asset = getAssetByTypeAndId(assetType, assetId);
+                    refreshAssetModalImage(selectedUrl(asset, assetType), asset?.name || '');
+                    renderVariantStrip(asset, assetType);
+                } catch (err) { alert(err.message); }
+            }
+        });
+
+        // Batch size buttons (delegated from footer)
+        document.getElementById('assetModalBatchRow').addEventListener('click', (e) => {
+            const btn = e.target.closest('.batch-size-btn');
+            if (!btn) return;
+            state.modalBatchSize = Number(btn.dataset.batch);
+            syncBatchSizeBtns();
+        });
+
+        // File upload
+        document.getElementById('assetUploadInput').addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (file) handleAssetUpload(file);
+        });
+
+        assetModalRegenBtn.addEventListener('click', () => {
+            if (!state.modalAssetType || !state.modalAssetId) return;
+            const effectiveType = state.modalAssetType === 'character' ? state.modalCharType : state.modalAssetType;
+            handleRegenAsset(effectiveType, state.modalAssetId, {
+                applyStyle: state.modalApplyStyle,
+                negativePrompt: state.modalNegativePrompt,
+                batchSize: state.modalBatchSize,
+                prompt: assetModalPrompt.value,
+                useCurrentAsRef: document.getElementById('useCurrentAsRef').checked
+            });
+            closeAssetModal();
+        });
+
+        contentPanel.addEventListener('change', (event) => {
+            if (event.target.id === 'charRatioSelect') {
+                state.aspectRatio = state.aspectRatio || {};
+                state.aspectRatio.character = event.target.value;
+            }
+            if (event.target.id === 'sceneRatioSelect') {
+                state.aspectRatio = state.aspectRatio || {};
+                state.aspectRatio.scene = event.target.value;
+            }
+            if (event.target.id === 'propRatioSelect') {
+                state.aspectRatio = state.aspectRatio || {};
+                state.aspectRatio.prop = event.target.value;
+            }
+        });
+
+        contentPanel.addEventListener('input', (event) => {
+            if (event.target.id === 'scriptTextarea') {
+                state.scriptText = event.target.value;
+            }
+            if (event.target.id === 'stylePrompt') {
+                state.customStylePrompt = event.target.value;
+            }
+            if (event.target.id === 'negativePrompt') {
+                state.customNegativePrompt = event.target.value;
+            }
+        });
+
+        sidePanel.addEventListener('click', async (event) => {
+            const toggle = event.target.closest('[data-toggle]');
+            if (toggle) {
+                const kind = toggle.dataset.toggle;
+                state.expanded[kind] = !state.expanded[kind];
+                renderSidePanel();
+                return;
+            }
+            const opener = event.target.closest('[data-show-form]');
+            if (opener) {
+                state.editingEntity = null;
+                renderSidePanel();
+                showInlineForm(opener.dataset.showForm);
+                return;
+            }
+            const cancel = event.target.closest('[data-cancel-form]');
+            if (cancel) {
+                hideInlineForm(cancel.dataset.cancelForm);
+                return;
+            }
+            const editBtn = event.target.closest('[data-edit-kind]');
+            if (editBtn && !event.target.closest('[data-delete-kind]')) {
+                const kind = editBtn.dataset.editKind;
+                const id = editBtn.dataset.id;
+                if (state.editingEntity && state.editingEntity.kind === kind && state.editingEntity.id === id) {
+                    state.editingEntity = null;
+                } else {
+                    state.editingEntity = { kind, id };
+                    hideInlineForm(kind);
+                }
+                renderSidePanel();
+                return;
+            }
+            const cancelEdit = event.target.closest('[data-cancel-edit]');
+            if (cancelEdit) {
+                state.editingEntity = null;
+                renderSidePanel();
+                return;
+            }
+            const del = event.target.closest('[data-delete-kind]');
+            if (del) {
+                await handleDeleteEntity(del.dataset.deleteKind, del.dataset.id);
+            }
+        });
+
+        sidePanel.addEventListener('submit', async (event) => {
+            const form = event.target.closest('.inline-form');
+            if (!form) return;
+            event.preventDefault();
+
+            // Edit form: id pattern is "edit-form-{kind}-{id}"
+            if (form.id.startsWith('edit-form-')) {
+                const parts = form.id.replace('edit-form-', '').split('-');
+                const kind = parts[0];
+                const id = parts.slice(1).join('-');
+                const payload = {
+                    name: form.name.value.trim(),
+                    description: form.description.value.trim()
+                };
+                if (form.elements.age) payload.age = form.elements.age.value.trim();
+                if (form.elements.gender) payload.gender = form.elements.gender.value.trim();
+                if (form.elements.clothing) payload.clothing = form.elements.clothing.value.trim();
+                if (!payload.name) return;
+                await handleEditEntity(kind, id, payload);
+                state.editingEntity = null;
+                renderSidePanel();
+                return;
+            }
+
+            // Add form: id pattern is "form-{kind}"
+            const kind = form.id.replace('form-', '');
+            const payload = {
+                name: form.name.value.trim(),
+                description: form.description.value.trim()
+            };
+            if (!payload.name) return;
+            await handleAddEntity(kind, payload);
+            hideInlineForm(kind);
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const theme = window.StudioTheme ? window.StudioTheme.get() : 'light';
+            document.body.classList.toggle('theme-dark', theme === 'dark');
+            document.documentElement.classList.toggle('studio-theme-dark', theme === 'dark');
+            syncAssetModalTexts();
+            if (window.StudioI18n) applyLanguage(window.StudioI18n.lang());
+            render();
+            loadProject();
+        });
+    </script>
+</body>
+</html>
