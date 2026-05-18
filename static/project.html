@@ -511,6 +511,27 @@
             align-items: center;
             justify-content: center;
         }
+        .asset-voice-btn {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,.6);
+            background: rgba(0,0,0,.45);
+            color: #fff;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+            transition: background .15s;
+        }
+        .asset-voice-btn:hover { background: rgba(0,0,0,.7); }
+        .asset-voice-btn.playing { background: rgba(37,99,235,.8); border-color: rgba(37,99,235,.9); }
+        .asset-voice-btn.muted-voice { opacity: .4; cursor: default; pointer-events: none; }
         .asset-regen-btn {
             padding: 2px 8px;
             font-size: 16px;
@@ -970,6 +991,7 @@
         .batch-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
         .cw-gen-btn { width: 100%; height: 36px; font-size: 13px; flex-shrink: 0; }
         .cw-footer { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+        .cw-voice-ref { padding: 8px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
         .cw-mode-group { display: inline-flex; gap: 2px; margin-left: 8px; vertical-align: middle; }
         .cw-mode-btn { padding: 2px 8px; font-size: 11px; font-weight: 600; border: 1px solid var(--border); border-radius: 4px; background: none; cursor: pointer; color: var(--muted); }
         .cw-mode-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
@@ -1161,6 +1183,20 @@
                         <div class="cw-gen-row"><span class="batch-sel" data-cw-batch="character_headshot"><button class="batch-btn active" data-batch="1">x1</button><button class="batch-btn" data-batch="2">x2</button><button class="batch-btn" data-batch="3">x3</button><button class="batch-btn" data-batch="4">x4</button></span><button class="primary-btn cw-gen-btn" data-cw-gen="character_headshot">↺ 生成</button></div>
                     </div>
                 </div>
+                <div class="cw-voice-ref" id="cwVoiceRef">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:12px;font-weight:600;">🎙️ <span id="cwVoiceLabel">声音参考</span></span>
+                        <button id="cwVoiceUploadBtn" style="padding:2px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;">上传音频</button>
+                        <button id="cwVoiceRemoveBtn" style="display:none;padding:2px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;color:var(--danger,#e53e3e);">移除</button>
+                        <span id="cwVoicePlayer" style="display:none;align-items:center;gap:6px;margin-left:4px;">
+                            <button id="cwVoicePlayBtn" style="width:24px;height:24px;border:1px solid var(--border);border-radius:50%;background:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;">▶</button>
+                            <span id="cwVoiceTime" style="font-size:11px;opacity:0.6;min-width:70px;">0:00 / 0:00</span>
+                            <input id="cwVoiceVolume" type="range" min="0" max="100" value="80" style="width:60px;cursor:pointer;">
+                        </span>
+                    </div>
+                    <audio id="cwVoiceAudio" style="display:none;"></audio>
+                    <div id="cwVoiceEmpty" style="font-size:11px;opacity:0.5;margin-top:4px;">暂无声音参考</div>
+                </div>
                 <div class="cw-footer">
                     <button id="cwLockBtn" aria-label="锁定资产" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;white-space:nowrap;">🔒 锁定</button>
                     <button id="cwCancelBtn" aria-label="取消生成" style="display:none;padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;white-space:nowrap;color:var(--danger,#e53e3e);">✕ 取消</button>
@@ -1179,6 +1215,7 @@
     <!-- Hidden file input for asset upload -->
     <input type="file" id="assetUploadInput" accept="image/*" style="display:none;">
     <input type="file" id="cwUploadInput" accept="image/*" style="display:none;">
+    <input type="file" id="cwVoiceInput" accept="audio/*" style="display:none;">
 
     <script>
         const projectId = new URLSearchParams(location.search).get('id');
@@ -1498,6 +1535,14 @@
             const srLabels = document.querySelectorAll('.cw-col .sr-only');
             const srTexts = [tr('全身提示词', 'Full Body prompt'), tr('三视图提示词', 'Three View prompt'), tr('头像提示词', 'Headshot prompt')];
             srLabels.forEach((lbl, i) => { if (srTexts[i]) lbl.textContent = srTexts[i]; });
+            const voiceLabel = document.getElementById('cwVoiceLabel');
+            if (voiceLabel) voiceLabel.textContent = tr('声音参考', 'Voice Reference');
+            const voiceUpBtn = document.getElementById('cwVoiceUploadBtn');
+            if (voiceUpBtn && !voiceUpBtn.disabled) voiceUpBtn.textContent = tr('上传音频', 'Upload Audio');
+            const voiceRmBtn = document.getElementById('cwVoiceRemoveBtn');
+            if (voiceRmBtn) voiceRmBtn.textContent = tr('移除', 'Remove');
+            const voiceEmpty = document.getElementById('cwVoiceEmpty');
+            if (voiceEmpty) voiceEmpty.textContent = tr('暂无声音参考', 'No voice reference');
         }
 
         function renderVariantStrip(asset, assetType) {
@@ -1548,6 +1593,11 @@
         }
 
         function openAssetModal(assetType, assetId) {
+            // Stop card voice preview if playing
+            if (typeof cardVoiceAudio !== 'undefined' && !cardVoiceAudio.paused) {
+                cardVoiceAudio.pause();
+                if (activeVoiceBtn) { activeVoiceBtn.textContent = '▶'; activeVoiceBtn.classList.remove('playing'); activeVoiceBtn = null; }
+            }
             const asset = getAssetByTypeAndId(assetType, assetId);
             if (!asset) return;
             state.modalAssetType = assetType;
@@ -1699,6 +1749,24 @@
             // Manual lock button
             const lockBtn = document.getElementById('cwLockBtn');
             if (lockBtn) lockBtn.textContent = isLocked ? tr('🔓 解锁', '🔓 Unlock') : tr('🔒 锁定', '🔒 Lock');
+            // Voice reference
+            const voiceUrl = asset.voice_ref_url || '';
+            const audioEl = document.getElementById('cwVoiceAudio');
+            const emptyEl = document.getElementById('cwVoiceEmpty');
+            const removeBtn = document.getElementById('cwVoiceRemoveBtn');
+            const playerEl = document.getElementById('cwVoicePlayer');
+            const playBtn = document.getElementById('cwVoicePlayBtn');
+            audioEl.pause(); audioEl.currentTime = 0;
+            if (playBtn) playBtn.textContent = '▶';
+            if (voiceUrl) {
+                audioEl.src = voiceUrl;
+                emptyEl.style.display = 'none'; removeBtn.style.display = '';
+                playerEl.style.display = 'inline-flex';
+            } else {
+                audioEl.src = '';
+                emptyEl.style.display = ''; removeBtn.style.display = 'none';
+                playerEl.style.display = 'none';
+            }
         }
 
         // Batch selector toggle
@@ -1743,6 +1811,65 @@
             } catch (err) { setStatus(err.message, 'error'); }
             finally { if (uploadBtn) { uploadBtn.textContent = '📎'; uploadBtn.disabled = false; } }
         });
+
+        // Voice reference upload
+        document.getElementById('cwVoiceUploadBtn').addEventListener('click', () => {
+            document.getElementById('cwVoiceInput').click();
+        });
+        document.getElementById('cwVoiceInput').addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            if (!file || !state.modalAssetId) return;
+            e.target.value = '';
+            const btn = document.getElementById('cwVoiceUploadBtn');
+            btn.textContent = '⏳'; btn.disabled = true;
+            try {
+                const formData = new FormData();
+                formData.append('files', file);
+                const res = await fetch('/api/ai/upload', { method: 'POST', body: formData });
+                if (!res.ok) throw new Error('Upload failed');
+                const data = await res.json();
+                const url = data.files?.[0]?.url;
+                if (!url) throw new Error('No URL');
+                const project = await api(`/api/comic/projects/${projectId}/assets/character/${state.modalAssetId}`, {
+                    method: 'PATCH', body: JSON.stringify({ voice_ref_url: url })
+                });
+                hydrateProject(project);
+                const asset = getAssetByTypeAndId('character', state.modalAssetId);
+                if (asset) openCharWorkbench(asset);
+            } catch (err) { setStatus(err.message, 'error'); }
+            finally { btn.textContent = tr('上传音频', 'Upload Audio'); btn.disabled = false; }
+        });
+        document.getElementById('cwVoiceRemoveBtn').addEventListener('click', async () => {
+            if (!state.modalAssetId) return;
+            try {
+                const project = await api(`/api/comic/projects/${projectId}/assets/character/${state.modalAssetId}`, {
+                    method: 'PATCH', body: JSON.stringify({ voice_ref_url: '' })
+                });
+                hydrateProject(project);
+                const asset = getAssetByTypeAndId('character', state.modalAssetId);
+                if (asset) openCharWorkbench(asset);
+            } catch (err) { setStatus(err.message, 'error'); }
+        });
+
+        // Voice player controls
+        (() => {
+            const audio = document.getElementById('cwVoiceAudio');
+            const playBtn = document.getElementById('cwVoicePlayBtn');
+            const timeEl = document.getElementById('cwVoiceTime');
+            const volEl = document.getElementById('cwVoiceVolume');
+            audio.volume = 0.8;
+            function fmtTime(s) { const m = Math.floor(s/60); return m + ':' + String(Math.floor(s%60)).padStart(2,'0'); }
+            playBtn.addEventListener('click', () => {
+                if (audio.paused) { audio.play(); playBtn.textContent = '⏸'; }
+                else { audio.pause(); playBtn.textContent = '▶'; }
+            });
+            audio.addEventListener('timeupdate', () => {
+                const dur = audio.duration || 0;
+                timeEl.textContent = fmtTime(audio.currentTime) + ' / ' + fmtTime(dur);
+            });
+            audio.addEventListener('ended', () => { playBtn.textContent = '▶'; });
+            volEl.addEventListener('input', () => { audio.volume = volEl.value / 100; });
+        })();
 
         // Char Workbench event delegation
         document.getElementById('charWorkbench').addEventListener('click', async (e) => {
@@ -1866,6 +1993,10 @@
         });
 
         function closeAssetModal() {
+            const va = document.getElementById('cwVoiceAudio');
+            if (va) { va.pause(); va.currentTime = 0; }
+            const pb = document.getElementById('cwVoicePlayBtn');
+            if (pb) pb.textContent = '▶';
             assetModal.classList.add('hidden');
             document.body.style.overflow = '';
             document.getElementById('appRoot').inert = false;
@@ -2150,7 +2281,8 @@
                 name: item.name,
                 description: item.description || '',
                 image: selectedUrl(item, 'character_headshot') || selectedUrl(item, 'character') || '',
-                placeholder: '👤'
+                placeholder: '👤',
+                voiceRefUrl: item.voice_ref_url || ''
             }));
             const scenes = (project.scenes || []).map(item => ({
                 kind: tr('场景', 'Scene'),
@@ -2270,6 +2402,7 @@
                                 <div class="asset-preview">
                                     ${item.image ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.name)}">` : `<span>${item.placeholder}</span>`}
                                     ${isRegen ? `<div class="asset-regen-overlay"><span class="spinner"></span></div>` : ''}
+                                    ${item.voiceRefUrl ? `<button class="asset-voice-btn" data-voice-src="${escapeHtml(item.voiceRefUrl)}" aria-label="${tr('播放声音', 'Play voice')}" title="${tr('播放声音', 'Play voice')}">▶</button>` : (item.assetType === 'character' ? `<span class="asset-voice-btn muted-voice" aria-label="${tr('无声音', 'No voice')}" title="${tr('无声音参考', 'No voice reference')}">🔇</span>` : '')}
                                 </div>
                                 <div class="asset-meta">
                                     <div>
@@ -3083,7 +3216,37 @@
             render();
         });
 
+        // Card voice preview
+        const cardVoiceAudio = new Audio();
+        let activeVoiceBtn = null;
+        cardVoiceAudio.addEventListener('ended', () => {
+            if (activeVoiceBtn) { activeVoiceBtn.textContent = '▶'; activeVoiceBtn.classList.remove('playing'); }
+            activeVoiceBtn = null;
+        });
+        function toggleCardVoice(btn) {
+            const src = btn.dataset.voiceSrc;
+            if (activeVoiceBtn === btn) {
+                cardVoiceAudio.pause();
+                btn.textContent = '▶'; btn.classList.remove('playing');
+                activeVoiceBtn = null;
+                return;
+            }
+            if (activeVoiceBtn) {
+                activeVoiceBtn.textContent = '▶'; activeVoiceBtn.classList.remove('playing');
+            }
+            cardVoiceAudio.src = src;
+            cardVoiceAudio.play();
+            btn.textContent = '⏸'; btn.classList.add('playing');
+            activeVoiceBtn = btn;
+        }
+
         contentPanel.addEventListener('click', (event) => {
+            const voiceBtn = event.target.closest('.asset-voice-btn');
+            if (voiceBtn) {
+                event.stopPropagation();
+                toggleCardVoice(voiceBtn);
+                return;
+            }
             const assetCard = event.target.closest('.asset-card');
             if (assetCard && !event.target.closest('.asset-regen-btn')) {
                 openAssetModal(assetCard.dataset.assetType, assetCard.dataset.assetId);

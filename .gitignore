@@ -11,3 +11,5 @@ data/
 screenshot/
 docs/
 .codex_write_test
+.claude/worktrees/
+history.json

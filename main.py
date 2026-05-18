@@ -789,6 +789,7 @@ class AssetDescriptionUpdate(BaseModel):
     age: Optional[str] = None
     gender: Optional[str] = None
     clothing: Optional[str] = None
+    voice_ref_url: Optional[str] = None
 
 class ComicAssetRegenRequest(BaseModel):
     asset_type: str  # "character" | "character_headshot" | "scene" | "prop"
@@ -1506,6 +1507,16 @@ def content_type_for_path(path):
         return "video/webm"
     if ext == ".mov":
         return "video/quicktime"
+    if ext == ".mp3":
+        return "audio/mpeg"
+    if ext == ".wav":
+        return "audio/wav"
+    if ext == ".m4a" or ext == ".aac":
+        return "audio/aac"
+    if ext == ".ogg":
+        return "audio/ogg"
+    if ext == ".flac":
+        return "audio/flac"
     if ext in [".jpg", ".jpeg"]:
         return "image/jpeg"
     if ext == ".webp":
@@ -2114,9 +2125,12 @@ async def upload_ai_reference(files: List[UploadFile] = File(...)):
         if not content:
             continue
         ext = os.path.splitext(file.filename or "")[1].lower()
-        if ext not in [".png", ".jpg", ".jpeg", ".webp"]:
+        if ext not in [".png", ".jpg", ".jpeg", ".webp", ".mp3", ".wav", ".m4a", ".ogg", ".flac", ".aac"]:
             content_type = (file.content_type or "").lower()
-            ext = ".jpg" if "jpeg" in content_type else ".webp" if "webp" in content_type else ".png"
+            if "audio" in content_type:
+                ext = ".mp3"
+            else:
+                ext = ".jpg" if "jpeg" in content_type else ".webp" if "webp" in content_type else ".png"
         filename = f"ai_ref_{uuid.uuid4().hex[:12]}{ext}"
         path = output_path_for(filename, "input")
         with open(path, "wb") as f:
@@ -4157,6 +4171,8 @@ async def update_asset_description(pid: str, asset_type: str, asset_id: str, bod
                 item["gender"] = body.gender
             if body.clothing is not None:
                 item["clothing"] = body.clothing
+            if body.voice_ref_url is not None:
+                item["voice_ref_url"] = body.voice_ref_url
         vk, sk, pk = _get_variant_fields(asset_type)
         if body.prompt is not None:
             item[pk] = body.prompt
