@@ -777,6 +777,7 @@ class ComicArtDirectionSave(BaseModel):
     style_negative_prompt: str = ""
     style_name: str = ""
     image_model: str = ""
+    provider_id: str = ""
     aspect_ratio: dict = {}
 
 class AssetDescriptionUpdate(BaseModel):
@@ -798,6 +799,7 @@ class ComicAssetRegenRequest(BaseModel):
     prompt: Optional[str] = None
     size: Optional[str] = None
     use_current_as_ref: bool = False
+    provider_id: Optional[str] = None
 
 class ComicGenerateAssetsRequest(BaseModel):
     character_size: str = "1024x1024"
@@ -4495,8 +4497,9 @@ async def _bg_generate_assets(task_id: str, pid: str, body):
     try:
         _update_task(task_id, status="running")
         _, project_snapshot = get_comic_project_or_404(pid)
-        provider = get_api_provider(get_primary_provider_id(load_api_providers()))
         art_direction = project_snapshot.get("art_direction") or {}
+        req_provider_id = art_direction.get("provider_id") or get_primary_provider_id(load_api_providers())
+        provider = get_api_provider(req_provider_id)
         project_model = art_direction.get("image_model", "").strip()
         image_models = provider.get("image_models") or [IMAGE_MODEL]
         model = selected_model(project_model or image_models[0], IMAGE_MODEL)
@@ -4616,8 +4619,9 @@ async def _bg_regenerate_asset(task_id: str, pid: str, body):
     try:
         _update_task(task_id, status="running")
         _, project_snapshot = get_comic_project_or_404(pid)
-        provider = get_api_provider(get_primary_provider_id(load_api_providers()))
         art_direction = project_snapshot.get("art_direction") or {}
+        req_provider_id = getattr(body, "provider_id", None) or art_direction.get("provider_id") or get_primary_provider_id(load_api_providers())
+        provider = get_api_provider(req_provider_id)
         project_model = art_direction.get("image_model", "").strip()
         image_models = provider.get("image_models") or [IMAGE_MODEL]
         model = selected_model(project_model or image_models[0], IMAGE_MODEL)

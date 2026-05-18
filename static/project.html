@@ -1037,13 +1037,13 @@
             <div class="asset-modal">
                 <div class="asset-modal-left">
                     <div class="asset-modal-tabs" id="assetModalTabs">
-                        <button class="asset-modal-tab active" data-tab="image">Image</button>
-                        <button class="asset-modal-tab" data-tab="video" disabled title="Coming soon">Video</button>
+                        <button class="asset-modal-tab active" data-tab="image">图片</button>
+                        <button class="asset-modal-tab" data-tab="video" disabled title="即将推出">视频</button>
                     </div>
                     <div id="assetModalImg"></div>
                     <div id="refImageBadge" class="hidden">
                         <img id="refImageThumb" src="" alt="ref">
-                        <span>📎 参考图已上传<br>Upload Detected</span>
+                        <span>📎 参考图已上传</span>
                     </div>
                     <div class="variant-strip" id="variantStrip"></div>
                 </div>
@@ -1051,27 +1051,27 @@
                     <div class="asset-modal-header">
                         <span class="badge" id="assetModalBadge"></span>
                         <h2 class="asset-modal-title" id="assetModalTitle"></h2>
-                        <button class="asset-modal-close" id="assetModalClose" aria-label="关闭 / Close">×</button>
+                        <button class="asset-modal-close" id="assetModalClose" aria-label="关闭">×</button>
                     </div>
                     <div class="asset-modal-body">
                         <div id="assetModalCharTabs" style="display:none;">
-                            <div class="asset-modal-desc-label">生成类型 / Generation Type</div>
+                            <div class="asset-modal-desc-label">生成类型</div>
                             <div style="display:flex;gap:8px;">
-                                <button class="asset-modal-char-tab active" data-char-type="character">全身 / Full Body</button>
-                                <button class="asset-modal-char-tab" data-char-type="character_headshot">头像 / Headshot</button>
+                                <button class="asset-modal-char-tab active" data-char-type="character">全身</button>
+                                <button class="asset-modal-char-tab" data-char-type="character_headshot">头像</button>
                             </div>
                         </div>
                         <div id="assetModalPromptSection">
-                            <label class="asset-modal-desc-label" for="assetModalPrompt">生成提示词 / Generation Prompt</label>
+                            <label class="asset-modal-desc-label" for="assetModalPrompt">生成提示词</label>
                             <textarea id="assetModalPrompt" class="asset-modal-desc-textarea" style="min-height:80px;font-family:monospace;font-size:12px;" placeholder="自定义生成描述（留空则根据资产信息自动生成）…"></textarea>
                         </div>
                         <div id="assetModalDescSection">
                             <div style="display:flex;align-items:center;gap:6px;">
                                 <button id="assetModalDescToggle" type="button" aria-expanded="false" aria-controls="assetModalDescBody" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:2px 0;background:none;border:none;flex:1;text-align:left;" onclick="toggleAssetModalDesc()">
-                                    <div class="asset-modal-desc-label" id="assetModalDescLabel" style="margin-bottom:0;flex:1;">描述 / Description</div>
+                                    <div class="asset-modal-desc-label" id="assetModalDescLabel" style="margin-bottom:0;flex:1;">描述</div>
                                     <span id="assetModalDescArrow" style="font-size:11px;color:var(--muted);" aria-hidden="true">▶</span>
                                 </button>
-                                <button id="assetModalDescEditBtn" type="button" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:2px 4px;border-radius:4px;line-height:1;transition:color .15s;" title="编辑描述 / Edit description" aria-label="编辑描述 / Edit description">✎</button>
+                                <button id="assetModalDescEditBtn" type="button" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:2px 4px;border-radius:4px;line-height:1;transition:color .15s;" title="编辑描述" aria-label="编辑描述">✎</button>
                             </div>
                             <div id="assetModalDescBody" style="display:none;margin-top:6px;">
                                 <div id="assetModalDescView" class="asset-modal-desc-text"></div>
@@ -1085,36 +1085,36 @@
                             </div>
                         </div>
                         <div id="assetModalStyleSection">
-                            <div class="asset-modal-desc-label">风格设置 / Style Settings</div>
+                            <div class="asset-modal-desc-label">风格设置</div>
                             <div style="background:rgba(0,0,0,.04);border-radius:10px;padding:12px;border:1px solid var(--border);">
                                 <div style="display:flex;align-items:center;gap:8px;">
-                                    <input type="checkbox" id="assetModalApplyStyle" checked style="width:16px;height:16px;flex-shrink:0;" aria-label="应用风格方向 / Apply Art Direction Style">
+                                    <input type="checkbox" id="assetModalApplyStyle" checked style="width:16px;height:16px;flex-shrink:0;" aria-label="应用风格方向">
                                     <button id="artDirectionHeader" type="button" aria-expanded="false" aria-controls="artDirectionBody" style="display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;background:none;border:none;padding:0;text-align:left;" onclick="toggleArtDirection()">
-                                        <span style="font-size:13px;font-weight:700;flex:1;">应用风格方向 / Apply Art Direction Style</span>
+                                        <span style="font-size:13px;font-weight:700;flex:1;">应用风格方向</span>
                                         <span id="artDirectionArrow" style="font-size:11px;color:var(--muted);" aria-hidden="true">▶</span>
                                     </button>
                                 </div>
                                 <div id="artDirectionBody" style="display:none;margin-top:10px;">
-                                    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px;">正向提示词 / Positive:</div>
+                                    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px;">正向提示词：</div>
                                     <pre id="artDirPositive" style="font-size:11px;color:var(--muted);font-family:monospace;background:rgba(0,0,0,.04);padding:8px;border-radius:6px;white-space:pre-wrap;word-break:break-all;margin:0 0 8px;"></pre>
-                                    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px;">负向提示词 / Negative:</div>
+                                    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px;">负向提示词：</div>
                                     <pre id="artDirNegative" style="font-size:11px;color:var(--muted);font-family:monospace;background:rgba(0,0,0,.04);padding:8px;border-radius:6px;white-space:pre-wrap;word-break:break-all;margin:0;"></pre>
                                 </div>
                             </div>
                         </div>
                         <div id="assetModalAdvancedSection">
                             <button id="assetModalAdvancedToggle" type="button" aria-expanded="false" aria-controls="assetModalAdvancedBody" style="font-size:11px;font-weight:800;text-transform:uppercase;color:var(--muted);background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;padding:0;">
-                                <span id="assetModalAdvancedArrow" aria-hidden="true">▶</span> 高级设置 / Advanced (Negative Prompt)
+                                <span id="assetModalAdvancedArrow" aria-hidden="true">▶</span> 高级设置（负向提示词）
                             </button>
                             <div id="assetModalAdvancedBody" style="display:none;margin-top:8px;">
-                                <label for="assetModalNegativePrompt" style="display:none;">负向提示词 / Negative Prompt</label>
-                                <textarea id="assetModalNegativePrompt" class="asset-modal-desc-textarea" style="min-height:72px;font-family:monospace;font-size:12px;" placeholder="Enter negative prompt…"></textarea>
+                                <label for="assetModalNegativePrompt" style="display:none;">负向提示词</label>
+                                <textarea id="assetModalNegativePrompt" class="asset-modal-desc-textarea" style="min-height:72px;font-family:monospace;font-size:12px;" placeholder="输入负向提示词…"></textarea>
                             </div>
                         </div>
                     </div>
                     <div class="asset-modal-footer">
                         <div style="display:flex;align-items:center;gap:6px;flex:1;flex-wrap:wrap;">
-                            <button class="primary-btn" id="assetModalRegenBtn" style="flex:1;height:42px;font-size:14px;font-weight:800;">↺ 重新生成 / Regenerate</button>
+                            <button class="primary-btn" id="assetModalRegenBtn" style="flex:1;height:42px;font-size:14px;font-weight:800;">↺ 重新生成</button>
                             <div class="batch-size-row" id="assetModalBatchRow" style="display:none;">
                                 <span style="font-size:11px;font-weight:700;color:var(--muted);">×</span>
                                 <button class="batch-size-btn active" data-batch="1">1</button>
@@ -1126,47 +1126,47 @@
                                 <input type="checkbox" id="useCurrentAsRef" style="cursor:pointer;"> 参考当前图
                             </label>
                         </div>
-                        <button id="assetModalDoneBtn" style="padding:0 20px;height:42px;background:#16a34a;color:#fff;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-size:13px;white-space:nowrap;flex-shrink:0;">✓ 完成 / Done</button>
+                        <button id="assetModalDoneBtn" style="padding:0 20px;height:42px;background:#16a34a;color:#fff;border:none;border-radius:10px;font-weight:800;cursor:pointer;font-size:13px;white-space:nowrap;flex-shrink:0;">✓ 完成</button>
                     </div>
                 </div>
             <!-- Character Workbench (3-column layout, shown for characters) -->
             <div id="charWorkbench" class="char-workbench hidden">
                 <div class="cw-header">
                     <h2 id="cwTitle"></h2>
-                    <button class="asset-modal-close" id="cwClose" aria-label="Close">×</button>
+                    <button class="asset-modal-close" id="cwClose" aria-label="关闭">×</button>
                 </div>
                 <div class="cw-columns">
                     <div class="cw-col" data-cw-type="character">
-                        <div class="cw-col-header">全身 / Full Body <button class="cw-upload-btn" data-cw-upload="character" title="Upload" aria-label="Upload Full Body image">📎</button><span class="cw-mode-group"><button class="cw-mode-btn active">Static</button><button class="cw-mode-btn cw-motion-btn" disabled>Motion</button></span></div>
+                        <div class="cw-col-header">全身 <button class="cw-upload-btn" data-cw-upload="character" title="上传" aria-label="上传全身图">📎</button><span class="cw-mode-group"><button class="cw-mode-btn active">静态</button><button class="cw-mode-btn cw-motion-btn" disabled>动态</button></span></div>
                         <div class="cw-col-img" id="cwImgFullBody"></div>
                         <div class="cw-col-variants" id="cwVarFullBody"></div>
-                        <label for="cwPromptFullBody" class="sr-only">Full Body prompt</label>
+                        <label for="cwPromptFullBody" class="sr-only">全身提示词</label>
                         <textarea class="cw-col-prompt" id="cwPromptFullBody"></textarea>
-                        <div class="cw-gen-row"><span class="batch-sel" data-cw-batch="character"><button class="batch-btn active" data-batch="1">x1</button><button class="batch-btn" data-batch="2">x2</button><button class="batch-btn" data-batch="3">x3</button><button class="batch-btn" data-batch="4">x4</button></span><button class="primary-btn cw-gen-btn" data-cw-gen="character">↺ Generate</button></div>
+                        <div class="cw-gen-row"><span class="batch-sel" data-cw-batch="character"><button class="batch-btn active" data-batch="1">x1</button><button class="batch-btn" data-batch="2">x2</button><button class="batch-btn" data-batch="3">x3</button><button class="batch-btn" data-batch="4">x4</button></span><button class="primary-btn cw-gen-btn" data-cw-gen="character">↺ 生成</button></div>
                     </div>
                     <div class="cw-col" data-cw-type="character_three_view">
-                        <div class="cw-col-header">三视图 / Three View <button class="cw-upload-btn" data-cw-upload="character_three_view" title="Upload" aria-label="Upload Three View image">📎</button><span class="cw-mode-group"><button class="cw-mode-btn active">Static</button><button class="cw-mode-btn cw-motion-btn" disabled>Motion</button></span></div>
+                        <div class="cw-col-header">三视图 <button class="cw-upload-btn" data-cw-upload="character_three_view" title="上传" aria-label="上传三视图">📎</button><span class="cw-mode-group"><button class="cw-mode-btn active">静态</button><button class="cw-mode-btn cw-motion-btn" disabled>动态</button></span></div>
                         <div class="cw-col-img" id="cwImgThreeView"></div>
                         <div class="cw-col-variants" id="cwVarThreeView"></div>
-                        <label for="cwPromptThreeView" class="sr-only">Three View prompt</label>
+                        <label for="cwPromptThreeView" class="sr-only">三视图提示词</label>
                         <textarea class="cw-col-prompt" id="cwPromptThreeView"></textarea>
-                        <div class="cw-gen-row"><span class="batch-sel" data-cw-batch="character_three_view"><button class="batch-btn active" data-batch="1">x1</button><button class="batch-btn" data-batch="2">x2</button><button class="batch-btn" data-batch="3">x3</button><button class="batch-btn" data-batch="4">x4</button></span><button class="primary-btn cw-gen-btn" data-cw-gen="character_three_view">↺ Generate</button></div>
+                        <div class="cw-gen-row"><span class="batch-sel" data-cw-batch="character_three_view"><button class="batch-btn active" data-batch="1">x1</button><button class="batch-btn" data-batch="2">x2</button><button class="batch-btn" data-batch="3">x3</button><button class="batch-btn" data-batch="4">x4</button></span><button class="primary-btn cw-gen-btn" data-cw-gen="character_three_view">↺ 生成</button></div>
                     </div>
                     <div class="cw-col" data-cw-type="character_headshot">
-                        <div class="cw-col-header">头像 / Headshot <button class="cw-upload-btn" data-cw-upload="character_headshot" title="Upload" aria-label="Upload Headshot image">📎</button><span class="cw-mode-group"><button class="cw-mode-btn active">Static</button><button class="cw-mode-btn cw-motion-btn" disabled>Motion</button></span></div>
+                        <div class="cw-col-header">头像 <button class="cw-upload-btn" data-cw-upload="character_headshot" title="上传" aria-label="上传头像">📎</button><span class="cw-mode-group"><button class="cw-mode-btn active">静态</button><button class="cw-mode-btn cw-motion-btn" disabled>动态</button></span></div>
                         <div class="cw-col-img" id="cwImgHeadshot"></div>
                         <div class="cw-col-variants" id="cwVarHeadshot"></div>
-                        <label for="cwPromptHeadshot" class="sr-only">Headshot prompt</label>
+                        <label for="cwPromptHeadshot" class="sr-only">头像提示词</label>
                         <textarea class="cw-col-prompt" id="cwPromptHeadshot"></textarea>
-                        <div class="cw-gen-row"><span class="batch-sel" data-cw-batch="character_headshot"><button class="batch-btn active" data-batch="1">x1</button><button class="batch-btn" data-batch="2">x2</button><button class="batch-btn" data-batch="3">x3</button><button class="batch-btn" data-batch="4">x4</button></span><button class="primary-btn cw-gen-btn" data-cw-gen="character_headshot">↺ Generate</button></div>
+                        <div class="cw-gen-row"><span class="batch-sel" data-cw-batch="character_headshot"><button class="batch-btn active" data-batch="1">x1</button><button class="batch-btn" data-batch="2">x2</button><button class="batch-btn" data-batch="3">x3</button><button class="batch-btn" data-batch="4">x4</button></span><button class="primary-btn cw-gen-btn" data-cw-gen="character_headshot">↺ 生成</button></div>
                     </div>
                 </div>
                 <div class="cw-footer">
-                    <button id="cwLockBtn" aria-label="Lock asset" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;white-space:nowrap;">🔒 Lock</button>
-                    <button id="cwCancelBtn" aria-label="Cancel generation" style="display:none;padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;white-space:nowrap;color:var(--danger,#e53e3e);">✕ 取消</button>
-                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;white-space:nowrap;"><input type="checkbox" id="cwApplyStyle" checked> Apply Style</label>
-                    <label for="cwNegativePrompt" class="sr-only">Negative prompt</label>
-                    <textarea id="cwNegativePrompt" class="cw-col-prompt" style="flex:1;min-height:36px;margin:0;" placeholder="Negative prompt…"></textarea>
+                    <button id="cwLockBtn" aria-label="锁定资产" style="padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;white-space:nowrap;">🔒 锁定</button>
+                    <button id="cwCancelBtn" aria-label="取消生成" style="display:none;padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:none;cursor:pointer;white-space:nowrap;color:var(--danger,#e53e3e);">✕ 取消</button>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;white-space:nowrap;"><input type="checkbox" id="cwApplyStyle" checked> 应用风格</label>
+                    <label for="cwNegativePrompt" class="sr-only">负向提示词</label>
+                    <textarea id="cwNegativePrompt" class="cw-col-prompt" style="flex:1;min-height:36px;margin:0;" placeholder="负向提示词…"></textarea>
                 </div>
             </div>
         </div>
@@ -1200,6 +1200,8 @@
             aspectRatio: { character: '1:1', scene: '16:9', prop: '1:1' },
             imageModels: [],
             selectedImageModel: '',
+            apiProviders: [],
+            selectedProviderId: '',
             presetId: '',
             customStylePrompt: '',
             customNegativePrompt: '',
@@ -1234,12 +1236,12 @@
         ];
 
         const steps = [
-            { id: 1, label: '1.脚本' },
-            { id: 2, label: '2.风格' },
-            { id: 3, label: '3.资产' },
-            { id: 4, label: '4.分镜' },
-            { id: 5, label: '5.动态' },
-            { id: 6, label: '6.合成' }
+            { id: 1, label: () => tr('1.脚本', '1.Script') },
+            { id: 2, label: () => tr('2.风格', '2.Style') },
+            { id: 3, label: () => tr('3.资产', '3.Assets') },
+            { id: 4, label: () => tr('4.分镜', '4.Storyboard') },
+            { id: 5, label: () => tr('5.动态', '5.Motion') },
+            { id: 6, label: () => tr('6.合成', '6.Compose') }
         ];
 
         const contentPanel = document.getElementById('contentPanel');
@@ -1412,6 +1414,89 @@
             document.getElementById('assetModalDescCancel').textContent = tr('取消', 'Cancel');
             assetModalRegenBtn.textContent = tr('↺ 重新生成', '↺ Regenerate');
             document.getElementById('assetModalDoneBtn').textContent = tr('✓ 完成', '✓ Done');
+            document.getElementById('assetModalClose').setAttribute('aria-label', tr('关闭', 'Close'));
+            const imgTab = document.querySelector('#assetModalTabs [data-tab="image"]');
+            if (imgTab) imgTab.textContent = tr('图片', 'Image');
+            const vidTab = document.querySelector('#assetModalTabs [data-tab="video"]');
+            if (vidTab) { vidTab.textContent = tr('视频', 'Video'); vidTab.title = tr('即将推出', 'Coming soon'); }
+            const charTabsLabel = document.querySelector('#assetModalCharTabs .asset-modal-desc-label');
+            if (charTabsLabel) charTabsLabel.textContent = tr('生成类型', 'Generation Type');
+            const charTabBtns = document.querySelectorAll('.asset-modal-char-tab');
+            if (charTabBtns[0]) charTabBtns[0].textContent = tr('全身', 'Full Body');
+            if (charTabBtns[1]) charTabBtns[1].textContent = tr('头像', 'Headshot');
+            const promptLabel = document.querySelector('label[for="assetModalPrompt"]');
+            if (promptLabel) promptLabel.textContent = tr('生成提示词', 'Generation Prompt');
+            const promptInput = document.getElementById('assetModalPrompt');
+            if (promptInput) promptInput.placeholder = tr('自定义生成描述（留空则自动生成）…', 'Custom prompt (leave empty for auto-generation)…');
+            const descEditBtn = document.getElementById('assetModalDescEditBtn');
+            if (descEditBtn) { descEditBtn.title = tr('编辑描述', 'Edit description'); descEditBtn.setAttribute('aria-label', tr('编辑描述', 'Edit description')); }
+            const artDirHeader = document.querySelector('#artDirectionHeader span');
+            if (artDirHeader) artDirHeader.textContent = tr('应用风格方向', 'Apply Art Direction Style');
+            const artBody = document.getElementById('artDirectionBody');
+            if (artBody) {
+                const labels = artBody.querySelectorAll('div[style*="font-weight:700"]');
+                if (labels[0]) labels[0].textContent = tr('正向提示词：', 'Positive:');
+                if (labels[1]) labels[1].textContent = tr('负向提示词：', 'Negative:');
+            }
+            const advToggle = document.getElementById('assetModalAdvancedToggle');
+            if (advToggle) {
+                const arrow = document.getElementById('assetModalAdvancedArrow');
+                advToggle.innerHTML = '';
+                if (arrow) advToggle.appendChild(arrow);
+                advToggle.append(' ' + tr('高级设置（负向提示词）', 'Advanced (Negative Prompt)'));
+            }
+            const negPrompt = document.getElementById('assetModalNegativePrompt');
+            if (negPrompt) negPrompt.placeholder = tr('输入负向提示词…', 'Enter negative prompt…');
+            const styleLabel = document.querySelector('#assetModalStyleSection > .asset-modal-desc-label');
+            if (styleLabel) styleLabel.textContent = tr('风格设置', 'Style Settings');
+            const applyStyleCb = document.getElementById('assetModalApplyStyle');
+            if (applyStyleCb) applyStyleCb.setAttribute('aria-label', tr('应用风格方向', 'Apply Art Direction Style'));
+            const refBadgeSpan = document.querySelector('#refImageBadge span');
+            if (refBadgeSpan) refBadgeSpan.innerHTML = '📎 ' + tr('参考图已上传', 'Upload Detected');
+            const useRefLabel = document.getElementById('useRefLabel');
+            if (useRefLabel) {
+                const cb = useRefLabel.querySelector('input');
+                if (cb) { useRefLabel.textContent = ''; useRefLabel.appendChild(cb); useRefLabel.append(' ' + tr('参考当前图', 'Use current as ref')); }
+            }
+        }
+
+        function syncCwTexts() {
+            const headers = document.querySelectorAll('.cw-col-header');
+            const types = [tr('全身', 'Full Body'), tr('三视图', 'Three View'), tr('头像', 'Headshot')];
+            const uploadLabels = [tr('上传全身图', 'Upload Full Body image'), tr('上传三视图', 'Upload Three View image'), tr('上传头像', 'Upload Headshot image')];
+            headers.forEach((hdr, i) => {
+                const firstText = hdr.childNodes[0];
+                if (firstText && firstText.nodeType === 3) firstText.textContent = types[i] + ' ';
+                const uploadBtn = hdr.querySelector('.cw-upload-btn');
+                if (uploadBtn) { uploadBtn.title = tr('上传', 'Upload'); uploadBtn.setAttribute('aria-label', uploadLabels[i]); }
+                const modeGroup = hdr.querySelector('.cw-mode-group');
+                if (modeGroup) {
+                    const btns = modeGroup.querySelectorAll('.cw-mode-btn');
+                    if (btns[0]) btns[0].textContent = tr('静态', 'Static');
+                    if (btns[1]) btns[1].textContent = tr('动态', 'Motion');
+                }
+            });
+            document.querySelectorAll('.cw-gen-btn').forEach(btn => { btn.textContent = tr('↺ 生成', '↺ Generate'); });
+            const lockBtn = document.getElementById('cwLockBtn');
+            if (lockBtn && !lockBtn.dataset.locked) lockBtn.textContent = tr('🔒 锁定', '🔒 Lock');
+            lockBtn?.setAttribute('aria-label', tr('锁定资产', 'Lock asset'));
+            const cancelBtn = document.getElementById('cwCancelBtn');
+            if (cancelBtn) { cancelBtn.textContent = tr('✕ 取消', '✕ Cancel'); cancelBtn.setAttribute('aria-label', tr('取消生成', 'Cancel generation')); }
+            const cwClose = document.getElementById('cwClose');
+            if (cwClose) cwClose.setAttribute('aria-label', tr('关闭', 'Close'));
+            const cwStyleLabel = document.querySelector('#cwApplyStyle');
+            if (cwStyleLabel && cwStyleLabel.parentElement.tagName === 'LABEL') {
+                const lbl = cwStyleLabel.parentElement;
+                const cb = cwStyleLabel;
+                lbl.textContent = '';
+                lbl.appendChild(cb);
+                lbl.append(' ' + tr('应用风格', 'Apply Style'));
+            }
+            const cwNeg = document.getElementById('cwNegativePrompt');
+            if (cwNeg) cwNeg.placeholder = tr('负向提示词…', 'Negative prompt…');
+            const srLabels = document.querySelectorAll('.cw-col .sr-only');
+            const srTexts = [tr('全身提示词', 'Full Body prompt'), tr('三视图提示词', 'Three View prompt'), tr('头像提示词', 'Headshot prompt')];
+            srLabels.forEach((lbl, i) => { if (srTexts[i]) lbl.textContent = srTexts[i]; });
         }
 
         function renderVariantStrip(asset, assetType) {
@@ -1431,7 +1516,7 @@
 
         function refreshAssetModalImage(url, altText) {
             const assetModalImgEl = document.getElementById('assetModalImg');
-            const uploadLabel = url ? tr('⬆ 上传替换 / Upload', '⬆ Upload replacement') : tr('⬆ 上传图片 / Upload', '⬆ Upload image');
+            const uploadLabel = url ? tr('⬆ 上传替换', '⬆ Upload replacement') : tr('⬆ 上传图片', '⬆ Upload image');
             if (url) {
                 assetModalImgEl.innerHTML = `
                     <img src="${escapeHtml(url)}" alt="${escapeHtml(altText || '')}" id="assetModalMainImg">
@@ -1611,12 +1696,12 @@
                 let overlay = col.querySelector('.cw-lock-overlay');
                 if (showLock) {
                     if (!overlay) { overlay = document.createElement('div'); overlay.className = 'cw-lock-overlay'; col.style.position = 'relative'; col.appendChild(overlay); }
-                    overlay.innerHTML = isLocked ? '🔒 Locked' : '🔒 Generate Full Body first';
+                    overlay.innerHTML = isLocked ? tr('🔒 已锁定', '🔒 Locked') : tr('🔒 请先生成全身图', '🔒 Generate Full Body first');
                 } else if (overlay) { overlay.remove(); }
             });
             // Manual lock button
             const lockBtn = document.getElementById('cwLockBtn');
-            if (lockBtn) lockBtn.textContent = isLocked ? '🔓 Unlock' : '🔒 Lock';
+            if (lockBtn) lockBtn.textContent = isLocked ? tr('🔓 解锁', '🔓 Unlock') : tr('🔒 锁定', '🔒 Lock');
         }
 
         // Batch selector toggle
@@ -1830,8 +1915,10 @@
                 }
                 if (configResult.status === 'fulfilled') {
                     state.imageModels = configResult.value.image_models || [];
+                    state.apiProviders = (configResult.value.api_providers || []).filter(p => p.enabled !== false);
                 } else {
                     state.imageModels = [];
+                    state.apiProviders = [];
                 }
                 hydrateProject(projectResult.value);
                 render();
@@ -1854,6 +1941,7 @@
             state.customStylePrompt = project.art_direction.style_prompt || '';
             state.customNegativePrompt = project.art_direction.style_negative_prompt || '';
             state.selectedImageModel = project.art_direction.image_model || '';
+            state.selectedProviderId = project.art_direction.provider_id || '';
             state.aspectRatio = project.art_direction.aspect_ratio && Object.keys(project.art_direction.aspect_ratio).length > 0
                 ? project.art_direction.aspect_ratio
                 : { character: '1:1', scene: '16:9', prop: '1:1' };
@@ -1862,13 +1950,14 @@
         function renderStepTabs() {
             stepTabs.innerHTML = steps.map(step => `
                 <button class="step-tab ${state.activeStep === step.id ? 'active' : ''}" type="button" data-step="${step.id}">
-                    ${step.label}
+                    ${step.label()}
                 </button>
             `).join('');
         }
 
         function renderTitle() {
             projectTitle.textContent = state.draftTitle || tr('未命名项目', 'Untitled Project');
+            projectTitle.title = tr('点击编辑', 'Click to edit');
             projectTitle.classList.remove('editing');
             projectTitle.removeAttribute('contenteditable');
         }
@@ -1892,7 +1981,7 @@
             contentPanel.innerHTML = `
                 <div class="coming-soon">
                     <div class="coming-card">
-                        <h2 class="preset-name">${tr('Coming Soon', 'Coming Soon')}</h2>
+                        <h2 class="preset-name">${tr('即将推出', 'Coming Soon')}</h2>
                         <p class="muted">${tr('该阶段将在后续版本开放。', 'This step will be available in a later phase.')}</p>
                     </div>
                 </div>
@@ -2025,15 +2114,6 @@
                 ${aiSection}
                 <div class="form-grid">
                     <label>
-                        <div class="section-title" style="margin-bottom:8px;">${tr('图像模型', 'Image Model')}</div>
-                        <select id="imageModelSelect" class="field-input">
-                            <option value="">${tr('全局默认', 'Global Default')}</option>
-                            ${state.imageModels.map(m => `<option value="${escapeHtml(m)}" ${state.selectedImageModel === m ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('')}
-                        </select>
-                    </label>
-                </div>
-                <div class="form-grid">
-                    <label>
                         <div class="section-title" style="margin-bottom:8px;">${tr('风格提示词', 'Style Prompt')}</div>
                         <textarea id="stylePrompt" class="field-textarea">${escapeHtml(state.customStylePrompt)}</textarea>
                     </label>
@@ -2131,6 +2211,18 @@
                 <div id="statusLine" class="status ${state.status.kind}">${escapeHtml(state.status.text)}</div>
                 <div class="gen-params-bar">
                     <span class="gen-params-label">⚙ ${tr('生成参数', 'Gen Params')}</span>
+                    <label>${tr('提供商', 'Provider')}
+                        <select id="providerSelect">
+                            <option value="">${tr('自动', 'Auto')}</option>
+                            ${state.apiProviders.map(p => `<option value="${escapeHtml(p.id)}" ${state.selectedProviderId === p.id ? 'selected' : ''}>${escapeHtml(p.name || p.id)}</option>`).join('')}
+                        </select>
+                    </label>
+                    <label>${tr('模型', 'Model')}
+                        <select id="imageModelSelect">
+                            <option value="">${tr('默认', 'Default')}</option>
+                            ${(function(){ const p = state.apiProviders.find(x => x.id === state.selectedProviderId); const models = p ? (p.image_models || []) : state.imageModels; return models.map(m => `<option value="${escapeHtml(m)}" ${state.selectedImageModel === m ? 'selected' : ''}>${escapeHtml(m)}</option>`).join(''); })()}
+                        </select>
+                    </label>
                     <label>${tr('角色', 'Char')}
                         <select id="charRatioSelect">
                             <option value="1:1" ${(state.aspectRatio?.character||'1:1')==='1:1'?'selected':''}>1:1</option>
@@ -2690,10 +2782,8 @@
             const preset = presets.find(item => item.id === state.presetId);
             const stylePromptField = document.getElementById('stylePrompt');
             const negativePromptField = document.getElementById('negativePrompt');
-            const imageModelField = document.getElementById('imageModelSelect');
             state.customStylePrompt = stylePromptField?.value.trim() || '';
             state.customNegativePrompt = negativePromptField?.value.trim() || '';
-            state.selectedImageModel = imageModelField?.value || '';
             state.savingStyle = true;
             setStatus(tr('保存风格中…', 'Saving style…'));
             render();
@@ -2706,6 +2796,7 @@
                         style_negative_prompt: state.customNegativePrompt,
                         style_name: preset ? preset.id : '',
                         image_model: state.selectedImageModel,
+                        provider_id: state.selectedProviderId,
                         aspect_ratio: state.aspectRatio
                     })
                 });
@@ -2955,6 +3046,7 @@
             document.documentElement.lang = state.lang === 'en' ? 'en' : 'zh-CN';
             document.title = tr('项目编辑器', 'Project Editor');
             syncAssetModalTexts();
+            syncCwTexts();
             render();
         }
 
@@ -3238,6 +3330,14 @@
         });
 
         contentPanel.addEventListener('change', (event) => {
+            if (event.target.id === 'providerSelect') {
+                state.selectedProviderId = event.target.value;
+                state.selectedImageModel = '';
+                render();
+            }
+            if (event.target.id === 'imageModelSelect') {
+                state.selectedImageModel = event.target.value;
+            }
             if (event.target.id === 'charRatioSelect') {
                 state.aspectRatio = state.aspectRatio || {};
                 state.aspectRatio.character = event.target.value;
@@ -3349,6 +3449,7 @@
             document.body.classList.toggle('theme-dark', theme === 'dark');
             document.documentElement.classList.toggle('studio-theme-dark', theme === 'dark');
             syncAssetModalTexts();
+            syncCwTexts();
             if (window.StudioI18n) applyLanguage(window.StudioI18n.lang());
             render();
             loadProject();
