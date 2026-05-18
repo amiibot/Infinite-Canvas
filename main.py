@@ -174,6 +174,7 @@ CONVERSATION_DIR = os.path.join(DATA_DIR, "conversations")
 CANVAS_DIR = os.path.join(DATA_DIR, "canvases")
 API_PROVIDERS_FILE = os.path.join(DATA_DIR, "api_providers.json")
 GLOBAL_CONFIG_FILE = os.path.join(BASE_DIR, "global_config.json")
+COMIC_TEXT_MAX_LEN = 20_000
 CANVAS_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
 
 QUEUE = []
@@ -183,7 +184,10 @@ GLOBAL_CONFIG_LOCK = Lock()
 CONVERSATION_LOCK = Lock()
 CANVAS_LOCK = Lock()
 LOAD_LOCK = Lock()
+COMIC_PROJECTS_LOCK = Lock()
+COMIC_SERIES_LOCK = Lock()
 NEXT_TASK_ID = 1
+_ASYNC_TASKS: dict = {}
 
 PROVIDER_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{2,40}$")
 
@@ -729,6 +733,243 @@ class CanvasAssetDownloadRequest(BaseModel):
     urls: List[str] = []
     filename: str = "canvas-output-images.zip"
 
+class ComicProjectCreate(BaseModel):
+    title: str
+    series_id: Optional[str] = None
+    episode_number: Optional[int] = None
+
+class ComicProjectUpdate(BaseModel):
+    title: Optional[str] = None
+
+class ComicSeriesCreate(BaseModel):
+    title: str
+    description: Optional[str] = ""
+
+class ComicSeriesUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+
+class ComicSeriesCharacterCreate(BaseModel):
+    name: str
+    description: str = ""
+
+class ComicSeriesSceneCreate(BaseModel):
+    name: str
+    description: str = ""
+
+class ComicCharacterCreate(BaseModel):
+    name: str
+    description: str = ""
+    age: str = ""
+    gender: str = ""
+    clothing: str = ""
+
+class ComicSceneCreate(BaseModel):
+    name: str
+    description: str = ""
+
+class ComicPropCreate(BaseModel):
+    name: str
+    description: str = ""
+
+class ComicArtDirectionSave(BaseModel):
+    style_prompt: str = ""
+    style_negative_prompt: str = ""
+    style_name: str = ""
+    image_model: str = ""
+    aspect_ratio: dict = {}
+
+class AssetDescriptionUpdate(BaseModel):
+    description: Optional[str] = None
+    prompt: Optional[str] = None
+    image_url: Optional[str] = None
+    full_body_image_url: Optional[str] = None
+    name: Optional[str] = None
+    age: Optional[str] = None
+    gender: Optional[str] = None
+    clothing: Optional[str] = None
+
+class ComicAssetRegenRequest(BaseModel):
+    asset_type: str  # "character" | "character_headshot" | "scene" | "prop"
+    asset_id: str
+    apply_style: bool = True
+    negative_prompt: str = ""
+    batch_size: int = 1
+    prompt: Optional[str] = None
+    size: Optional[str] = None
+    use_current_as_ref: bool = False
+
+class ComicGenerateAssetsRequest(BaseModel):
+    character_size: str = "1024x1024"
+    scene_size: str = "1536x1024"
+    prop_size: str = "1024x1024"
+
+class ComicAssetVariantAction(BaseModel):
+    variant_id: str
+
+MAX_ASSET_VARIANTS = 10
+
+def _make_variant(url: str, is_uploaded_source: bool = False) -> dict:
+    return {"id": str(uuid.uuid4()), "url": url, "is_favorited": False, "created_at": time.time(), "is_uploaded_source": is_uploaded_source}
+
+def _migrate_asset_variants(item: dict, url_fields: list) -> None:
+    """Migrate legacy single-URL fields to variants array in-place."""
+    if "variants" not in item:
+        item["variants"] = []
+        item["selected_variant_id"] = None
+    for field in url_fields:
+        legacy_url = item.pop(field, None)
+        if legacy_url and not any(v["url"] == legacy_url for v in item["variants"]):
+            v = _make_variant(legacy_url)
+            item["variants"].append(v)
+            if item["selected_variant_id"] is None:
+                item["selected_variant_id"] = v["id"]
+
+def _get_variant_fields(asset_type: str) -> tuple:
+    """Return (variant_key, selected_key, prompt_key) for the given asset_type."""
+    if asset_type == "character_headshot":
+        return "headshot_variants", "headshot_selected_variant_id", "headshot_prompt"
+    if asset_type == "character_three_view":
+        return "three_view_variants", "three_view_selected_variant_id", "three_view_prompt"
+    return "variants", "selected_variant_id", "prompt"
+
+def _migrate_char_legacy_url(char: dict, field: str, variants_key: str, selected_key: str) -> None:
+    """Migrate a single legacy URL field into the correct per-type variants array."""
+    legacy_url = char.pop(field, None)
+    if not legacy_url:
+        return
+    variants = char.setdefault(variants_key, [])
+    if not any(v["url"] == legacy_url for v in variants):
+        v = _make_variant(legacy_url)
+        variants.append(v)
+        if char.get(selected_key) is None:
+            char[selected_key] = v["id"]
+
+def _migrate_project_assets(project: dict) -> None:
+    for char in project.get("characters", []):
+        _migrate_asset_variants(char, ["full_body_image_url"])
+        _migrate_char_legacy_url(char, "headshot_image_url", "headshot_variants", "headshot_selected_variant_id")
+        _migrate_char_legacy_url(char, "three_view_image_url", "three_view_variants", "three_view_selected_variant_id")
+        char.setdefault("asset_type", "full_body")
+        char.setdefault("headshot_variants", [])
+        char.setdefault("headshot_selected_variant_id", None)
+        char.setdefault("headshot_prompt", "")
+        char.setdefault("three_view_variants", [])
+        char.setdefault("three_view_selected_variant_id", None)
+        char.setdefault("three_view_prompt", "")
+        char.setdefault("locked", False)
+    for scene in project.get("scenes", []):
+        _migrate_asset_variants(scene, ["image_url"])
+        scene.setdefault("locked", False)
+    for prop in project.get("props", []):
+        _migrate_asset_variants(prop, ["image_url"])
+        prop.setdefault("locked", False)
+
+def _append_variant(item: dict, url: str, is_uploaded_source: bool = False,
+                    variant_key: str = "variants", selected_key: str = "selected_variant_id") -> dict:
+    """Append a new variant, auto-select it, prune non-favorited if over MAX."""
+    v = _make_variant(url, is_uploaded_source)
+    item.setdefault(variant_key, [])
+    item[variant_key].append(v)
+    item[selected_key] = v["id"]
+    # Prune oldest non-favorited variants beyond MAX_ASSET_VARIANTS
+    variants = item[variant_key]
+    if len(variants) > MAX_ASSET_VARIANTS:
+        prunable = [x["id"] for x in variants if not x.get("is_favorited") and x["id"] != item[selected_key]]
+        to_remove = len(variants) - MAX_ASSET_VARIANTS
+        ids_to_remove = set(prunable[:to_remove])
+        item[variant_key] = [x for x in variants if x["id"] not in ids_to_remove]
+    return v
+
+class ComicParseRequest(BaseModel):
+    text: str = ""
+
+class ComicSyncDescriptionsRequest(BaseModel):
+    force: bool = False
+    provider_id: str = ""
+    model: str = ""
+
+class ComicFrameCreate(BaseModel):
+    action_description: str
+    dialogue: Optional[str] = ""
+    camera_movement: Optional[str] = ""
+    image_prompt: Optional[str] = ""
+    character_ids: Optional[list] = []
+    scene_id: Optional[str] = None
+    prop_ids: Optional[list] = []
+    insert_at: Optional[int] = None
+
+class ComicFrameUpdate(BaseModel):
+    action_description: Optional[str] = None
+    dialogue: Optional[str] = None
+    camera_movement: Optional[str] = None
+    image_prompt: Optional[str] = None
+    locked: Optional[bool] = None
+    character_ids: Optional[list] = None
+    scene_id: Optional[str] = None
+    prop_ids: Optional[list] = None
+
+class ComicFrameReorder(BaseModel):
+    frame_ids: list
+
+class ComicSelectVideo(BaseModel):
+    video_id: str
+
+def load_comic_projects():
+    p = os.path.join(BASE_DIR, "data", "comic_projects.json")
+    if not os.path.exists(p):
+        return []
+    with open(p, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_comic_projects(items):
+    p = os.path.join(BASE_DIR, "data", "comic_projects.json")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    tmp = p + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(items, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, p)
+
+def atomic_update_comic_projects(fn):
+    """在锁内完成 load → fn(projects) → save，防止并发覆盖。fn 应返回 projects。"""
+    with COMIC_PROJECTS_LOCK:
+        projects = load_comic_projects()
+        projects = fn(projects)
+        save_comic_projects(projects)
+    return projects
+
+def atomic_update_comic_series(fn):
+    """在锁内完成 load → fn(series) → save，防止并发覆盖。fn 应返回 series_list。"""
+    with COMIC_SERIES_LOCK:
+        series_list = load_comic_series()
+        series_list = fn(series_list)
+        save_comic_series(series_list)
+    return series_list
+
+def update_comic_project(pid: str, data: dict):
+    def _update(projects):
+        for proj in projects:
+            if proj["id"] == pid:
+                proj.update(data)
+                break
+        return projects
+    atomic_update_comic_projects(_update)
+
+def load_comic_series():
+    p = os.path.join(BASE_DIR, "data", "comic_series.json")
+    if not os.path.exists(p):
+        return []
+    with open(p, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def save_comic_series(items):
+    p = os.path.join(BASE_DIR, "data", "comic_series.json")
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    tmp = p + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(items, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, p)
+
 # --- 负载均衡 ---
 
 def check_images_exist(backend_addr, images):
@@ -1043,6 +1284,34 @@ def resolve_chat_provider(provider: str, model: str, ms_model: str):
     default_model = (api_provider.get("chat_models") or [CHAT_MODEL])[0]
     mdl = selected_model(model, default_model)
     return base, hdrs, mdl
+
+def _create_task(task_id: str, **meta) -> dict:
+    task = {"task_id": task_id, "status": "pending", "progress": 0, "total": 0,
+            "result": None, "error": None, "_asyncio_task": None}
+    task.update(meta)
+    _ASYNC_TASKS[task_id] = task
+    return task
+
+def _update_task(task_id: str, **kwargs):
+    if task_id in _ASYNC_TASKS:
+        _ASYNC_TASKS[task_id].update(kwargs)
+
+async def call_chat_completion(messages: list, provider_id: str = "", model: str = "") -> str:
+    chat_base, chat_hdrs, mdl = resolve_chat_provider(provider_id, model, "")
+    try:
+        async with httpx.AsyncClient(timeout=AI_REQUEST_TIMEOUT) as client:
+            response = await client.post(
+                f"{chat_base}/chat/completions",
+                headers=chat_hdrs,
+                json={"model": mdl, "messages": messages},
+            )
+            response.raise_for_status()
+            raw = response.json()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(status_code=exc.response.status_code, detail=f"上游接口错误：{exc.response.text}") from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"请求上游接口失败：{exc}") from exc
+    return text_from_chat_response(raw)
 
 def api_headers(json_body=True, provider=None):
     if provider:
@@ -1530,6 +1799,15 @@ GPT_IMAGE2_MIN_PIXELS = 655_360
 def is_gpt_image_2_model(model):
     return str(model or "").strip().lower() == "gpt-image-2"
 
+def _build_white_png_bytes(width=1024, height=1024):
+    import zlib
+    def chunk(t, d): return len(d).to_bytes(4,"big") + t + d + zlib.crc32(t+d).to_bytes(4,"big")
+    ihdr = chunk(b"IHDR", width.to_bytes(4,"big")+height.to_bytes(4,"big")+b"\x08\x02\x00\x00\x00")
+    row = b"\x00" + b"\xff\xff\xff" * width
+    idat = chunk(b"IDAT", zlib.compress(row * height))
+    iend = chunk(b"IEND", b"")
+    return b"\x89PNG\r\n\x1a\n" + ihdr + idat + iend
+
 def normalize_gpt_image_2_size(size):
     width, height = parse_size_pair(size)
     if not width or not height:
@@ -1732,7 +2010,9 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
                 headers=api_headers(provider=provider),
                 json={"model": model, "prompt": prompt, "size": size, "quality": quality, "response_format": "url", "n": 1},
             )
-        response.raise_for_status()
+        if response.status_code >= 400:
+            err_text = response.text[:300]
+            raise HTTPException(status_code=502, detail=f"Image API error {response.status_code}: {err_text}")
         raw = response.json()
         try:
             return extract_image(raw), raw
@@ -3671,6 +3951,1328 @@ def run_workflow(name: str, payload: WorkflowRunRequest):
         client_id=payload.client_id or str(uuid.uuid4()),
     )
     return generate(req)
+
+@app.get("/api/tasks/{task_id}")
+async def get_task_status(task_id: str):
+    task = _ASYNC_TASKS.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {k: v for k, v in task.items() if not k.startswith("_")}
+
+@app.post("/api/tasks/{task_id}/cancel")
+async def cancel_task(task_id: str):
+    task = _ASYNC_TASKS.get(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    if task["status"] in ("completed", "failed", "cancelled"):
+        raise HTTPException(status_code=409, detail=f"Task already {task['status']}")
+    at = task.get("_asyncio_task")
+    if at:
+        at.cancel()
+    return Response(status_code=204)
+
+@app.get("/api/comic/projects")
+async def get_comic_projects():
+    return load_comic_projects()
+
+def get_comic_project_or_404(pid: str):
+    projects = load_comic_projects()
+    project = next((p for p in projects if p.get("id") == pid), None)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    _migrate_project_assets(project)
+    return projects, project
+
+def get_comic_frame_or_404(project, fid):
+    frames = project.get("frames", [])
+    for i, f in enumerate(frames):
+        if f["id"] == fid:
+            return i, f
+    raise HTTPException(status_code=404, detail="Frame not found")
+
+def parse_json_object_from_text(text: str):
+    raw = (text or "").strip()
+    if not raw:
+        raise HTTPException(status_code=502, detail="LLM returned empty response")
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+    match = re.search(r"\{.*\}", raw, re.S)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            pass
+    raise HTTPException(status_code=502, detail=f"LLM did not return valid JSON: {raw[:300]}")
+
+def normalize_story_entities(raw):
+    raw = raw if isinstance(raw, dict) else {}
+    normalized = {"characters": [], "scenes": [], "props": []}
+
+    for item in raw.get("characters") or []:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        normalized["characters"].append({
+            "id": str(uuid.uuid4()),
+            "name": name,
+            "description": str(item.get("description") or "").strip(),
+            "age": str(item.get("age") or "").strip(),
+            "gender": str(item.get("gender") or "").strip(),
+            "clothing": str(item.get("clothing") or "").strip(),
+            "variants": [],
+            "selected_variant_id": None,
+            "asset_type": "full_body",
+        })
+
+    for item in raw.get("scenes") or []:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        normalized["scenes"].append({
+            "id": str(uuid.uuid4()),
+            "name": name,
+            "description": str(item.get("description") or "").strip(),
+            "variants": [],
+            "selected_variant_id": None,
+        })
+
+    for item in raw.get("props") or []:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        normalized["props"].append({
+            "id": str(uuid.uuid4()),
+            "name": name,
+            "description": str(item.get("description") or "").strip(),
+            "variants": [],
+            "selected_variant_id": None,
+        })
+
+    return normalized
+
+@app.post("/api/comic/projects")
+async def create_comic_project(body: ComicProjectCreate):
+    project = {
+        "id": str(uuid.uuid4()),
+        "title": body.title,
+        "created_at": time.time(),
+        "status": "pending",
+        "series_id": body.series_id,
+        "episode_number": body.episode_number,
+        "original_text": "",
+        "characters": [],
+        "scenes": [],
+        "props": [],
+        "art_direction": {
+            "style_prompt": "",
+            "style_negative_prompt": "",
+            "style_name": ""
+        },
+        "frames": [],
+        "video_tasks": [],
+        "merged_video_url": ""
+    }
+    def _add(projects):
+        projects.append(project)
+        return projects
+    atomic_update_comic_projects(_add)
+    if body.series_id:
+        sid = body.series_id
+        pid = project["id"]
+        def _link(series_list):
+            for s in series_list:
+                if s["id"] == sid:
+                    s.setdefault("episode_ids", []).append(pid)
+                    break
+            return series_list
+        atomic_update_comic_series(_link)
+    return project
+
+@app.delete("/api/comic/projects/{pid}")
+async def delete_comic_project(pid: str):
+    def _del_proj(projects):
+        return [p for p in projects if p["id"] != pid]
+    atomic_update_comic_projects(_del_proj)
+    def _del_series_ref(series_list):
+        for s in series_list:
+            if pid in s.get("episode_ids", []):
+                s["episode_ids"].remove(pid)
+        return series_list
+    atomic_update_comic_series(_del_series_ref)
+    return {"ok": True}
+
+@app.get("/api/comic/projects/{pid}")
+async def get_comic_project(pid: str):
+    _, project = get_comic_project_or_404(pid)
+    return project
+
+@app.put("/api/comic/projects/{pid}")
+async def update_comic_project_route(pid: str, body: ComicProjectUpdate):
+    result = {}
+    def _update(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        if body.title is not None:
+            project["title"] = body.title.strip() or project["title"]
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_update)
+    return result["project"]
+
+@app.patch("/api/comic/projects/{pid}/assets/{asset_type}/{asset_id}")
+async def update_asset_description(pid: str, asset_type: str, asset_id: str, body: AssetDescriptionUpdate):
+    if asset_type not in ("character", "character_headshot", "character_three_view", "scene", "prop"):
+        raise HTTPException(status_code=400, detail="asset_type must be character, character_headshot, character_three_view, scene, or prop")
+    result = {}
+    def _update(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        _migrate_project_assets(project)
+        collection = {"character": "characters", "character_headshot": "characters", "character_three_view": "characters", "scene": "scenes", "prop": "props"}[asset_type]
+        item = next((x for x in project.get(collection, []) if x["id"] == asset_id), None)
+        if not item:
+            raise HTTPException(status_code=404, detail=f"{asset_type} not found")
+        if body.description is not None:
+            item["description"] = body.description
+        if body.name is not None:
+            item["name"] = body.name
+        if asset_type in ("character", "character_headshot", "character_three_view"):
+            if body.age is not None:
+                item["age"] = body.age
+            if body.gender is not None:
+                item["gender"] = body.gender
+            if body.clothing is not None:
+                item["clothing"] = body.clothing
+        vk, sk, pk = _get_variant_fields(asset_type)
+        if body.prompt is not None:
+            item[pk] = body.prompt
+        # Uploaded URLs become new variants (append + select), mark as uploaded source
+        upload_url = body.full_body_image_url or body.image_url
+        if upload_url:
+            if item.get("locked"):
+                raise HTTPException(status_code=403, detail="Asset is locked")
+            _append_variant(item, upload_url, is_uploaded_source=True, variant_key=vk, selected_key=sk)
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_update)
+    return result["project"]
+
+@app.post("/api/comic/projects/{pid}/parse")
+async def parse_comic_project(pid: str, body: ComicParseRequest):
+    # Validate text length before acquiring lock
+    text = (body.text or "").strip()
+    if len(text) > COMIC_TEXT_MAX_LEN:
+        raise HTTPException(status_code=400, detail=f"文本过长，最多 {COMIC_TEXT_MAX_LEN} 字符")
+    provider_id = get_primary_provider_id(load_api_providers())
+    system_prompt = "You are a story analyzer. Extract characters, scenes, and props from the text. Return JSON only."
+    user_prompt = (
+        "Extract from this text and return JSON with this exact structure:\n"
+        "{\"characters\": [{\"name\": str, \"description\": str, \"age\": str, \"gender\": str, \"clothing\": str}],\n"
+        " \"scenes\": [{\"name\": str, \"description\": str}],\n"
+        " \"props\": [{\"name\": str, \"description\": str}]}\n\n"
+        f"Text:\n{text}"
+    )
+    result_text = await call_chat_completion(
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        provider_id=provider_id,
+    )
+    extracted = normalize_story_entities(parse_json_object_from_text(result_text))
+    result = {}
+    def _save(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project.update({
+            "original_text": text,
+            "characters": extracted["characters"],
+            "scenes": extracted["scenes"],
+            "props": extracted["props"],
+        })
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_save)
+    return result["project"]
+
+@app.post("/api/comic/projects/{pid}/sync_descriptions")
+async def sync_comic_descriptions(pid: str, body: ComicSyncDescriptionsRequest = None):
+    get_comic_project_or_404(pid)
+    if body is None:
+        body = ComicSyncDescriptionsRequest()
+    task_id = str(uuid.uuid4())
+    _create_task(task_id)
+    at = asyncio.create_task(_bg_sync_descriptions(task_id, pid, body))
+    _update_task(task_id, _asyncio_task=at)
+    return {"_task_id": task_id}
+
+@app.post("/api/comic/projects/{pid}/characters")
+async def add_comic_character(pid: str, body: ComicCharacterCreate):
+    result = {}
+    def _add(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project.setdefault("characters", []).append({
+            "id": str(uuid.uuid4()),
+            "name": body.name,
+            "description": body.description,
+            "age": body.age,
+            "gender": body.gender,
+            "clothing": body.clothing,
+            "variants": [],
+            "selected_variant_id": None,
+            "asset_type": "full_body",
+        })
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_add)
+    return result["project"]
+
+@app.delete("/api/comic/projects/{pid}/characters/{cid}")
+async def delete_comic_character(pid: str, cid: str):
+    result = {}
+    def _del(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project["characters"] = [item for item in project.get("characters", []) if item.get("id") != cid]
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_del)
+    return result["project"]
+
+@app.post("/api/comic/projects/{pid}/scenes")
+async def add_comic_scene(pid: str, body: ComicSceneCreate):
+    result = {}
+    def _add(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project.setdefault("scenes", []).append({
+            "id": str(uuid.uuid4()),
+            "name": body.name,
+            "description": body.description,
+            "variants": [],
+            "selected_variant_id": None,
+        })
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_add)
+    return result["project"]
+
+@app.delete("/api/comic/projects/{pid}/scenes/{sid}")
+async def delete_comic_scene(pid: str, sid: str):
+    result = {}
+    def _del(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project["scenes"] = [item for item in project.get("scenes", []) if item.get("id") != sid]
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_del)
+    return result["project"]
+
+@app.post("/api/comic/projects/{pid}/props")
+async def add_comic_prop(pid: str, body: ComicPropCreate):
+    result = {}
+    def _add(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project.setdefault("props", []).append({
+            "id": str(uuid.uuid4()),
+            "name": body.name,
+            "description": body.description,
+            "variants": [],
+            "selected_variant_id": None,
+        })
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_add)
+    return result["project"]
+
+@app.delete("/api/comic/projects/{pid}/props/{propid}")
+async def delete_comic_prop(pid: str, propid: str):
+    result = {}
+    def _del(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project["props"] = [item for item in project.get("props", []) if item.get("id") != propid]
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_del)
+    return result["project"]
+
+@app.post("/api/comic/projects/{pid}/art_direction/analyze")
+async def analyze_comic_art_direction(pid: str):
+    _, project = get_comic_project_or_404(pid)
+    script_text = (project.get("original_text") or "").strip()
+    if not script_text:
+        raise HTTPException(status_code=400, detail="剧本内容为空，请先在 Step1 输入剧本")
+    system_prompt = (
+        "你是专业的电影美术指导和视觉风格顾问。根据剧本内容推荐3种截然不同的视觉风格。\n"
+        "每种风格包含：name（英文，简洁）、description（中文，1-2句）、reason（中文，≤50字，说明为何适合该剧本）、"
+        "positive_prompt（英文SD提示词，只描述光影/色调/材质/氛围/艺术媒介，≤50词，禁止描述具体人物/场景/物品）、"
+        "negative_prompt（英文，≤30词）。\n"
+        "返回严格JSON：{\"recommendations\": [{\"name\":...,\"description\":...,\"reason\":...,\"positive_prompt\":...,\"negative_prompt\":...}]}\n"
+        "只返回3个推荐，不多不少。不要包含任何解释性文字。"
+    )
+    user_prompt = f"剧本内容：\n\n{script_text[:2000]}"
+    raw = await call_chat_completion([
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ])
+    data = parse_json_object_from_text(raw)
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=502, detail="LLM 推荐结果格式无效")
+    raw_recommendations = data.get("recommendations")
+    if not isinstance(raw_recommendations, list) or len(raw_recommendations) != 3:
+        raise HTTPException(status_code=502, detail="LLM 必须返回 3 条风格推荐")
+    recommendations = []
+    for item in raw_recommendations:
+        if not isinstance(item, dict):
+            raise HTTPException(status_code=502, detail="LLM 推荐项格式无效")
+        recommendation = {
+            "name": str(item.get("name") or "").strip(),
+            "description": str(item.get("description") or "").strip(),
+            "reason": str(item.get("reason") or "").strip(),
+            "positive_prompt": str(item.get("positive_prompt") or "").strip(),
+            "negative_prompt": str(item.get("negative_prompt") or "").strip(),
+        }
+        required = ("name", "positive_prompt")
+        if not all(recommendation[k] for k in required):
+            raise HTTPException(status_code=502, detail="LLM 推荐项字段不完整")
+        recommendations.append(recommendation)
+    return {"recommendations": recommendations}
+
+
+@app.post("/api/comic/projects/{pid}/art_direction")
+async def save_comic_art_direction(pid: str, body: ComicArtDirectionSave):
+    result = {}
+    def _save(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project["art_direction"] = body.dict()
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_save)
+    return result["project"]
+
+async def _bg_sync_descriptions(task_id: str, pid: str, body):
+    try:
+        _update_task(task_id, status="running")
+        _, project_snapshot = get_comic_project_or_404(pid)
+        original_text = (project_snapshot.get("original_text") or "")[:500]
+        provider_id = body.provider_id or get_primary_provider_id(load_api_providers())
+
+        def needs_update(item):
+            return body.force or not (item.get("description") or "").strip()
+
+        chars_todo = [c for c in project_snapshot.get("characters", []) if needs_update(c)]
+        scenes_todo = [s for s in project_snapshot.get("scenes", []) if needs_update(s)]
+        props_todo  = [p for p in project_snapshot.get("props", [])   if needs_update(p)]
+        total = len(chars_todo) + len(scenes_todo) + len(props_todo)
+        _update_task(task_id, total=total)
+
+        if total == 0:
+            _update_task(task_id, status="completed", result={"updated": 0, "failures": []})
+            return
+
+        failures = []
+        desc_updates = {}
+        done = 0
+
+        for char in chars_todo:
+            name = char.get("name", "")
+            age = char.get("age", "")
+            gender = char.get("gender", "")
+            clothing = char.get("clothing", "")
+            try:
+                res = await call_chat_completion(
+                    messages=[
+                        {"role": "system", "content": "You are a visual novel character designer. Write concise visual descriptions."},
+                        {"role": "user", "content": (
+                            f"Character name: {name}\n"
+                            f"Age: {age}, Gender: {gender}, Clothing: {clothing}\n"
+                            f"Story context: {original_text}\n\n"
+                            "Write a 1-2 sentence visual description for image generation. Return only the description."
+                        )},
+                    ],
+                    provider_id=provider_id,
+                    model=body.model,
+                )
+                desc_updates[char["id"]] = res.strip()
+            except Exception as exc:
+                failures.append(f"character '{name}': {exc}")
+                print(f"sync_descriptions character failed: {exc}")
+            done += 1
+            _update_task(task_id, progress=done)
+
+        for scene in scenes_todo:
+            name = scene.get("name", "")
+            try:
+                res = await call_chat_completion(
+                    messages=[
+                        {"role": "system", "content": "You are a visual novel background artist. Write concise scene descriptions."},
+                        {"role": "user", "content": (
+                            f"Scene name: {name}\n"
+                            f"Story context: {original_text}\n\n"
+                            "Write a 1-2 sentence visual description for image generation. Return only the description."
+                        )},
+                    ],
+                    provider_id=provider_id,
+                    model=body.model,
+                )
+                desc_updates[scene["id"]] = res.strip()
+            except Exception as exc:
+                failures.append(f"scene '{name}': {exc}")
+                print(f"sync_descriptions scene failed: {exc}")
+            done += 1
+            _update_task(task_id, progress=done)
+
+        for prop in props_todo:
+            name = prop.get("name", "")
+            try:
+                res = await call_chat_completion(
+                    messages=[
+                        {"role": "system", "content": "You are a visual novel prop designer. Write concise prop descriptions."},
+                        {"role": "user", "content": (
+                            f"Prop name: {name}\n"
+                            f"Story context: {original_text}\n\n"
+                            "Write a 1-2 sentence visual description for image generation. Return only the description."
+                        )},
+                    ],
+                    provider_id=provider_id,
+                    model=body.model,
+                )
+                desc_updates[prop["id"]] = res.strip()
+            except Exception as exc:
+                failures.append(f"prop '{name}': {exc}")
+                print(f"sync_descriptions prop failed: {exc}")
+            done += 1
+            _update_task(task_id, progress=done)
+
+        if len(failures) == total:
+            _update_task(task_id, status="failed", error=f"All descriptions failed: {failures[0]}")
+            return
+
+        def _write_back(projects):
+            project = next((p for p in projects if p["id"] == pid), None)
+            if not project:
+                return projects
+            for collection in ("characters", "scenes", "props"):
+                for item in project.get(collection, []):
+                    if item["id"] in desc_updates:
+                        item["description"] = desc_updates[item["id"]]
+            return projects
+        atomic_update_comic_projects(_write_back)
+        _update_task(task_id, status="completed",
+                     result={"failures": failures, "updated": len(desc_updates)})
+
+    except asyncio.CancelledError:
+        _update_task(task_id, status="cancelled")
+        raise
+    except Exception as exc:
+        _update_task(task_id, status="failed", error=str(exc))
+        print(f"_bg_sync_descriptions error: {exc}")
+
+async def _bg_generate_assets(task_id: str, pid: str, body):
+    try:
+        _update_task(task_id, status="running")
+        _, project_snapshot = get_comic_project_or_404(pid)
+        provider = get_api_provider(get_primary_provider_id(load_api_providers()))
+        art_direction = project_snapshot.get("art_direction") or {}
+        project_model = art_direction.get("image_model", "").strip()
+        image_models = provider.get("image_models") or [IMAGE_MODEL]
+        model = selected_model(project_model or image_models[0], IMAGE_MODEL)
+        style_prompt = art_direction.get("style_prompt", "")
+        negative_prompt = art_direction.get("style_negative_prompt", "")
+
+        def build_prompt(base: str) -> str:
+            parts = [p for p in [base, f"Avoid: {negative_prompt}" if negative_prompt else ""] if p]
+            return " ".join(parts)
+
+        chars = [c for c in project_snapshot.get("characters", []) if not c.get("locked")]
+        scenes = [s for s in project_snapshot.get("scenes", []) if not s.get("locked")]
+        props = [p for p in project_snapshot.get("props", []) if not p.get("locked")]
+        total = len(chars) + len(scenes) + len(props)
+        _update_task(task_id, total=total)
+
+        failures = []
+        char_updates = {}
+        done = 0
+        for char in chars:
+            base = (
+                f"Headshot portrait of {char.get('name', '')}. "
+                f"{char.get('description', '')}. "
+                f"{style_prompt}. Face and shoulders, clean white background, high quality."
+            ).strip()
+            try:
+                # C1: use full body selected variant as ref for headshot batch generation
+                fb_sid = char.get("selected_variant_id")
+                fb_url = next((v["url"] for v in char.get("variants", []) if v["id"] == fb_sid), None) if fb_sid else None
+                if not fb_url and char.get("variants"):
+                    fb_url = char["variants"][-1]["url"]
+                char_ref = [{"url": fb_url, "name": char.get("name", "")}] if fb_url else None
+                image_data, _ = await generate_ai_image(build_prompt(base), (body.character_size if body else "1024x1024"), "auto", model, char_ref, provider["id"])
+                char_updates[char["id"]] = await save_ai_image_to_output(image_data, prefix="comic_headshot_")
+            except Exception as exc:
+                failures.append(f"character '{char.get('name', '')}': {exc}")
+                print(f"generate character asset failed: {exc}")
+            done += 1
+            _update_task(task_id, progress=done)
+
+        scene_updates = {}
+        for scene in scenes:
+            base = (
+                f"Scene background: {scene.get('name', '')}. "
+                f"{scene.get('description', '')}. "
+                f"{style_prompt}. High quality illustration."
+            ).strip()
+            try:
+                image_data, _ = await generate_ai_image(build_prompt(base), (body.scene_size if body else "1536x1024"), "auto", model, None, provider["id"])
+                scene_updates[scene["id"]] = await save_ai_image_to_output(image_data, prefix="comic_scene_")
+            except Exception as exc:
+                failures.append(f"scene '{scene.get('name', '')}': {exc}")
+                print(f"generate scene asset failed: {exc}")
+            done += 1
+            _update_task(task_id, progress=done)
+
+        prop_updates = {}
+        for prop in props:
+            base = (
+                f"Prop design: {prop.get('name', '')}. "
+                f"{prop.get('description', '')}. "
+                f"{style_prompt}. Isolated on white background, high quality."
+            ).strip()
+            try:
+                image_data, _ = await generate_ai_image(build_prompt(base), (body.prop_size if body else "1024x1024"), "auto", model, None, provider["id"])
+                prop_updates[prop["id"]] = await save_ai_image_to_output(image_data, prefix="comic_prop_")
+            except Exception as exc:
+                failures.append(f"prop '{prop.get('name', '')}': {exc}")
+                print(f"generate prop asset failed: {exc}")
+            done += 1
+            _update_task(task_id, progress=done)
+
+        all_total = (len(project_snapshot.get("characters", [])) +
+                     len(project_snapshot.get("scenes", [])) +
+                     len(project_snapshot.get("props", [])))
+        if failures and len(failures) == all_total:
+            _update_task(task_id, status="failed", error=f"All asset generations failed: {failures[0]}")
+            return
+
+        result_holder = {}
+        def _write_back(projects):
+            project = next((p for p in projects if p["id"] == pid), None)
+            if not project:
+                return projects
+            _migrate_project_assets(project)
+            for char in project.get("characters", []):
+                if char["id"] in char_updates:
+                    _append_variant(char, char_updates[char["id"]], variant_key="headshot_variants", selected_key="headshot_selected_variant_id")
+            for scene in project.get("scenes", []):
+                if scene["id"] in scene_updates:
+                    _append_variant(scene, scene_updates[scene["id"]])
+            for prop in project.get("props", []):
+                if prop["id"] in prop_updates:
+                    _append_variant(prop, prop_updates[prop["id"]])
+            result_holder["project"] = project
+            return projects
+        atomic_update_comic_projects(_write_back)
+        project = result_holder.get("project", {})
+        if failures:
+            project["_warnings"] = [f"{len(failures)}/{all_total} assets failed to generate"]
+        _update_task(task_id, status="completed", result={"project": project})
+    except asyncio.CancelledError:
+        _update_task(task_id, status="cancelled")
+    except Exception as e:
+        _update_task(task_id, status="failed", error=str(e))
+
+@app.post("/api/comic/projects/{pid}/generate_assets")
+async def generate_comic_assets(pid: str, body: ComicGenerateAssetsRequest = None):
+    get_comic_project_or_404(pid)  # validate early
+    task_id = str(uuid.uuid4())
+    _create_task(task_id)
+    at = asyncio.create_task(_bg_generate_assets(task_id, pid, body))
+    _update_task(task_id, _asyncio_task=at)
+    return {"_task_id": task_id}
+
+async def _bg_regenerate_asset(task_id: str, pid: str, body):
+    try:
+        _update_task(task_id, status="running")
+        _, project_snapshot = get_comic_project_or_404(pid)
+        provider = get_api_provider(get_primary_provider_id(load_api_providers()))
+        art_direction = project_snapshot.get("art_direction") or {}
+        project_model = art_direction.get("image_model", "").strip()
+        image_models = provider.get("image_models") or [IMAGE_MODEL]
+        model = selected_model(project_model or image_models[0], IMAGE_MODEL)
+        style_prompt = art_direction.get("style_prompt", "")
+        art_neg = art_direction.get("style_negative_prompt", "")
+        negative_prompt = ", ".join(filter(None, [body.negative_prompt, art_neg]))
+        batch_size = max(1, min(4, body.batch_size or 1))
+
+        asset_type = body.asset_type
+        asset_id = body.asset_id
+        collection = {"character": "characters", "character_headshot": "characters", "character_three_view": "characters", "scene": "scenes", "prop": "props"}.get(asset_type)
+
+        if asset_type in ("character", "character_headshot", "character_three_view"):
+            item = next((c for c in project_snapshot.get("characters", []) if c["id"] == asset_id), None)
+            if asset_type == "character":
+                base = (
+                    f"Full body character design of {item.get('name', '')}. "
+                    f"{item.get('description', '')}. "
+                    f"Clean white background, high quality."
+                ).strip()
+                size = "1024x1024"
+                prefix = "comic_char_"
+            elif asset_type == "character_three_view":
+                base = (
+                    f"Character Reference Sheet for {item.get('name', '')}. "
+                    f"{item.get('description', '')}. "
+                    f"Three-view character design: Front view, Side view, and Back view. "
+                    f"Clean white background, high quality."
+                ).strip()
+                size = "1536x1024"
+                prefix = "comic_threeview_"
+            else:
+                base = (
+                    f"Close-up portrait of {item.get('name', '')}. "
+                    f"{item.get('description', '')}. "
+                    f"Detailed facial features, neutral expression, looking at viewer, high quality."
+                ).strip()
+                size = "1024x1024"
+                prefix = "comic_headshot_"
+        elif asset_type == "scene":
+            item = next((s for s in project_snapshot.get("scenes", []) if s["id"] == asset_id), None)
+            base = (
+                f"Scene background: {item.get('name', '')}. "
+                f"{item.get('description', '')}. "
+                f"High quality illustration."
+            ).strip()
+            size = "1536x1024"
+            prefix = "comic_scene_"
+        else:  # prop
+            item = next((p for p in project_snapshot.get("props", []) if p["id"] == asset_id), None)
+            base = (
+                f"Prop design: {item.get('name', '')}. "
+                f"{item.get('description', '')}. "
+                f"Isolated on white background, high quality."
+            ).strip()
+            size = "1024x1024"
+            prefix = "comic_prop_"
+
+        # A2: append style only if not already present
+        if body.apply_style and style_prompt and style_prompt not in base:
+            base = f"{base} {style_prompt}"
+        base_prompt = base  # A1: description + style (no user_extra or STRICTLY MAINTAIN prefix)
+
+        if body.size:
+            size = body.size
+
+        prompt = f"{base} Avoid: {negative_prompt}" if negative_prompt else base
+        vk, sk, pk = _get_variant_fields(asset_type)
+        user_extra = (body.prompt or item.get(pk) or "").strip()
+        if user_extra:
+            combined = f"{user_extra} {base}"
+            prompt = f"{combined} Avoid: {negative_prompt}" if negative_prompt else combined
+        has_uploaded = any(v.get("is_uploaded_source") for v in item.get(vk, []))
+        if has_uploaded:
+            maintain = "STRICTLY MAINTAIN the SAME character appearance, face, hairstyle, skin tone, and clothing as the reference image. "
+            prompt = maintain + prompt
+
+        # B1: use current selected variant as reference image if requested
+        ref_images = None
+        if body.use_current_as_ref:
+            sid = item.get(sk)
+            ref_url = next((v["url"] for v in item.get(vk, []) if v["id"] == sid), None) if sid else None
+            if not ref_url and item.get(vk):
+                ref_url = item[vk][-1]["url"]
+            if ref_url:
+                ref_images = [{"url": ref_url, "name": item.get("name", "")}]
+
+        # B2: three_view / headshot always use full body as ref (overrides B1)
+        if asset_type in ("character_three_view", "character_headshot"):
+            fb_sid = item.get("selected_variant_id")
+            fb_url = next((v["url"] for v in item.get("variants", []) if v["id"] == fb_sid), None) if fb_sid else None
+            if not fb_url and item.get("variants"):
+                fb_url = item["variants"][-1]["url"]
+            if fb_url:
+                ref_images = [{"url": fb_url, "name": item.get("name", "")}]
+
+        # B3: full body generation uses uploaded three_view or headshot as ref (only if no ref yet)
+        if asset_type == "character" and ref_images is None:
+            for upload_key in ("three_view_variants", "headshot_variants"):
+                uploaded = next((v for v in item.get(upload_key, []) if v.get("is_uploaded_source")), None)
+                if uploaded and uploaded.get("url"):
+                    ref_images = [{"url": uploaded["url"], "name": item.get("name", "")}]
+                    break
+
+        _update_task(task_id, total=batch_size)
+        new_urls = []
+        for i in range(batch_size):
+            image_data, _ = await generate_ai_image(prompt, size, "auto", model, ref_images, provider["id"])
+            new_urls.append(await save_ai_image_to_output(image_data, prefix=prefix))
+            _update_task(task_id, progress=i + 1)
+
+        result_holder = {}
+        def _write(projects):
+            project = next((p for p in projects if p["id"] == pid), None)
+            if not project:
+                return projects
+            _migrate_project_assets(project)
+            vk2, sk2, pk2 = _get_variant_fields(asset_type)
+            for entry in project.get(collection, []):
+                if entry["id"] == asset_id:
+                    entry[pk2] = base_prompt  # A1: write back base prompt (without style)
+                    for url in new_urls:
+                        _append_variant(entry, url, variant_key=vk2, selected_key=sk2)
+                    break
+            result_holder["project"] = project
+            return projects
+        atomic_update_comic_projects(_write)
+        _update_task(task_id, status="completed", result={"project": result_holder.get("project", {})})
+    except asyncio.CancelledError:
+        _update_task(task_id, status="cancelled")
+    except Exception as e:
+        _update_task(task_id, status="failed", error=str(e))
+
+@app.post("/api/comic/projects/{pid}/regenerate_asset")
+async def regenerate_comic_asset(pid: str, body: ComicAssetRegenRequest):
+    _, project_snapshot = get_comic_project_or_404(pid)
+    asset_type = body.asset_type
+    asset_id = body.asset_id
+    collection = {"character": "characters", "character_headshot": "characters", "character_three_view": "characters", "scene": "scenes", "prop": "props"}.get(asset_type)
+    if not collection:
+        raise HTTPException(status_code=400, detail="asset_type must be character, character_headshot, character_three_view, scene, or prop")
+    if asset_type in ("character", "character_headshot", "character_three_view"):
+        item = next((c for c in project_snapshot.get("characters", []) if c["id"] == asset_id), None)
+        if not item:
+            raise HTTPException(status_code=404, detail="Character not found")
+        if item.get("locked"):
+            raise HTTPException(status_code=403, detail="Asset is locked")
+    elif asset_type == "scene":
+        item = next((s for s in project_snapshot.get("scenes", []) if s["id"] == asset_id), None)
+        if not item:
+            raise HTTPException(status_code=404, detail="Scene not found")
+        if item.get("locked"):
+            raise HTTPException(status_code=403, detail="Asset is locked")
+    else:
+        item = next((p for p in project_snapshot.get("props", []) if p["id"] == asset_id), None)
+        if not item:
+            raise HTTPException(status_code=404, detail="Prop not found")
+        if item.get("locked"):
+            raise HTTPException(status_code=403, detail="Asset is locked")
+    task_id = str(uuid.uuid4())
+    _create_task(task_id)
+    at = asyncio.create_task(_bg_regenerate_asset(task_id, pid, body))
+    _update_task(task_id, _asyncio_task=at)
+    return {"_task_id": task_id}
+
+@app.post("/api/comic/projects/{pid}/assets/{asset_type}/{asset_id}/variants/{variant_id}/select")
+async def select_asset_variant(pid: str, asset_type: str, asset_id: str, variant_id: str):
+    if asset_type not in ("character", "character_headshot", "character_three_view", "scene", "prop"):
+        raise HTTPException(status_code=400, detail="asset_type must be character, character_headshot, character_three_view, scene, or prop")
+    collection = {"character": "characters", "character_headshot": "characters", "character_three_view": "characters", "scene": "scenes", "prop": "props"}[asset_type]
+    vk, sk, _ = _get_variant_fields(asset_type)
+    result = {}
+    def _update(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        _migrate_project_assets(project)
+        item = next((x for x in project.get(collection, []) if x["id"] == asset_id), None)
+        if not item:
+            raise HTTPException(status_code=404, detail=f"{asset_type} not found")
+        if not any(v["id"] == variant_id for v in item.get(vk, [])):
+            raise HTTPException(status_code=404, detail="Variant not found")
+        item[sk] = variant_id
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_update)
+    return result["project"]
+
+@app.delete("/api/comic/projects/{pid}/assets/{asset_type}/{asset_id}/variants/{variant_id}")
+async def delete_asset_variant(pid: str, asset_type: str, asset_id: str, variant_id: str):
+    if asset_type not in ("character", "character_headshot", "character_three_view", "scene", "prop"):
+        raise HTTPException(status_code=400, detail="asset_type must be character, character_headshot, character_three_view, scene, or prop")
+    collection = {"character": "characters", "character_headshot": "characters", "character_three_view": "characters", "scene": "scenes", "prop": "props"}[asset_type]
+    vk, sk, _ = _get_variant_fields(asset_type)
+    result = {}
+    def _update(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        _migrate_project_assets(project)
+        item = next((x for x in project.get(collection, []) if x["id"] == asset_id), None)
+        if not item:
+            raise HTTPException(status_code=404, detail=f"{asset_type} not found")
+        if item.get("locked"):
+            raise HTTPException(status_code=403, detail="Asset is locked")
+        item[vk] = [v for v in item.get(vk, []) if v["id"] != variant_id]
+        if item.get(sk) == variant_id:
+            item[sk] = item[vk][-1]["id"] if item[vk] else None
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_update)
+    return result["project"]
+
+@app.post("/api/comic/projects/{pid}/assets/{asset_type}/{asset_id}/toggle-lock")
+async def toggle_asset_lock(pid: str, asset_type: str, asset_id: str):
+    if asset_type not in ("character", "character_headshot", "character_three_view", "scene", "prop"):
+        raise HTTPException(status_code=400, detail="Invalid asset_type")
+    collection = {"character": "characters", "character_headshot": "characters", "character_three_view": "characters", "scene": "scenes", "prop": "props"}[asset_type]
+    result = {}
+    def _update(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        _migrate_project_assets(project)
+        item = next((x for x in project.get(collection, []) if x["id"] == asset_id), None)
+        if not item:
+            raise HTTPException(status_code=404, detail=f"{asset_type} not found")
+        item["locked"] = not item.get("locked", False)
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_update)
+    return result["project"]
+
+@app.post("/api/comic/projects/{pid}/assets/{asset_type}/{asset_id}/variants/{variant_id}/favorite")
+async def favorite_asset_variant(pid: str, asset_type: str, asset_id: str, variant_id: str):
+    if asset_type not in ("character", "character_headshot", "character_three_view", "scene", "prop"):
+        raise HTTPException(status_code=400, detail="asset_type must be character, character_headshot, character_three_view, scene, or prop")
+    collection = {"character": "characters", "character_headshot": "characters", "character_three_view": "characters", "scene": "scenes", "prop": "props"}[asset_type]
+    vk, _, _ = _get_variant_fields(asset_type)
+    result = {}
+    def _update(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        _migrate_project_assets(project)
+        item = next((x for x in project.get(collection, []) if x["id"] == asset_id), None)
+        if not item:
+            raise HTTPException(status_code=404, detail=f"{asset_type} not found")
+        v = next((v for v in item.get(vk, []) if v["id"] == variant_id), None)
+        if not v:
+            raise HTTPException(status_code=404, detail="Variant not found")
+        v["is_favorited"] = not v.get("is_favorited", False)
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_update)
+    return result["project"]
+
+@app.get("/api/comic/series")
+async def get_comic_series():
+    return load_comic_series()
+
+@app.post("/api/comic/series")
+async def create_comic_series(body: ComicSeriesCreate):
+    series = {
+        "id": str(uuid.uuid4()),
+        "title": body.title,
+        "description": body.description,
+        "created_at": time.time(),
+        "episode_ids": [],
+        "characters": [],
+        "scenes": []
+    }
+    def _add(series_list):
+        series_list.append(series)
+        return series_list
+    atomic_update_comic_series(_add)
+    return series
+
+@app.delete("/api/comic/series/{sid}")
+async def delete_comic_series(sid: str):
+    def _del(series_list):
+        return [s for s in series_list if s["id"] != sid]
+    atomic_update_comic_series(_del)
+    def _unlink(projects):
+        for p in projects:
+            if p.get("series_id") == sid:
+                p["series_id"] = None
+                p["episode_number"] = None
+        return projects
+    atomic_update_comic_projects(_unlink)
+    return {"ok": True}
+
+@app.get("/api/comic/series/{sid}/episodes")
+async def get_series_episodes(sid: str):
+    projects = load_comic_projects()
+    episodes = [p for p in projects if p.get("series_id") == sid]
+    episodes.sort(key=lambda x: (x.get("episode_number") or 0))
+    return episodes
+
+def get_comic_series_or_404(sid: str):
+    series_list = load_comic_series()
+    series = next((s for s in series_list if s["id"] == sid), None)
+    if series is None:
+        raise HTTPException(status_code=404, detail="Series not found")
+    return series_list, series
+
+@app.get("/api/comic/series/{sid}")
+async def get_comic_series_detail(sid: str):
+    _, series = get_comic_series_or_404(sid)
+    return series
+
+@app.put("/api/comic/series/{sid}")
+async def update_comic_series(sid: str, body: ComicSeriesUpdate):
+    result = {}
+    def _update(series_list):
+        series = next((s for s in series_list if s["id"] == sid), None)
+        if not series:
+            raise HTTPException(status_code=404, detail="Series not found")
+        if body.title is not None:
+            series["title"] = body.title
+        if body.description is not None:
+            series["description"] = body.description
+        result["series"] = series
+        return series_list
+    atomic_update_comic_series(_update)
+    return result["series"]
+
+@app.post("/api/comic/series/{sid}/characters")
+async def add_series_character(sid: str, body: ComicSeriesCharacterCreate):
+    char = {"id": str(uuid.uuid4()), "name": body.name, "description": body.description}
+    def _add(series_list):
+        series = next((s for s in series_list if s["id"] == sid), None)
+        if not series:
+            raise HTTPException(status_code=404, detail="Series not found")
+        series.setdefault("characters", []).append(char)
+        return series_list
+    atomic_update_comic_series(_add)
+    return char
+
+@app.delete("/api/comic/series/{sid}/characters/{cid}")
+async def delete_series_character(sid: str, cid: str):
+    def _del(series_list):
+        series = next((s for s in series_list if s["id"] == sid), None)
+        if not series:
+            raise HTTPException(status_code=404, detail="Series not found")
+        series["characters"] = [c for c in series.get("characters", []) if c["id"] != cid]
+        return series_list
+    atomic_update_comic_series(_del)
+    return {"ok": True}
+
+@app.post("/api/comic/series/{sid}/scenes")
+async def add_series_scene(sid: str, body: ComicSeriesSceneCreate):
+    scene = {"id": str(uuid.uuid4()), "name": body.name, "description": body.description}
+    def _add(series_list):
+        series = next((s for s in series_list if s["id"] == sid), None)
+        if not series:
+            raise HTTPException(status_code=404, detail="Series not found")
+        series.setdefault("scenes", []).append(scene)
+        return series_list
+    atomic_update_comic_series(_add)
+    return scene
+
+@app.delete("/api/comic/series/{sid}/scenes/{scid}")
+async def delete_series_scene(sid: str, scid: str):
+    def _del(series_list):
+        series = next((s for s in series_list if s["id"] == sid), None)
+        if not series:
+            raise HTTPException(status_code=404, detail="Series not found")
+        series["scenes"] = [s for s in series.get("scenes", []) if s["id"] != scid]
+        return series_list
+    atomic_update_comic_series(_del)
+    return {"ok": True}
+
+
+# --- Comic Frame Routes ---
+
+@app.get("/api/comic/projects/{pid}/frames")
+async def get_comic_frames(pid: str):
+    _, project = get_comic_project_or_404(pid)
+    return project.get("frames", [])
+
+@app.post("/api/comic/projects/{pid}/frames")
+async def add_comic_frame(pid: str, body: ComicFrameCreate):
+    frame = {
+        "id": str(uuid.uuid4()),
+        "action_description": body.action_description,
+        "dialogue": body.dialogue or "",
+        "camera_movement": body.camera_movement or "",
+        "image_prompt": body.image_prompt or "",
+        "image_url": "",
+        "locked": False,
+        "character_ids": body.character_ids or [],
+        "scene_id": body.scene_id,
+        "prop_ids": body.prop_ids or [],
+        "selected_video_id": None,
+        "created_at": time.time(),
+    }
+    insert_at = body.insert_at
+    result = {}
+    def _add(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        frames = project.setdefault("frames", [])
+        if insert_at is not None:
+            frames.insert(insert_at, frame)
+        else:
+            frames.append(frame)
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_add)
+    return result["project"]
+
+@app.put("/api/comic/projects/{pid}/frames/{fid}")
+async def update_comic_frame(pid: str, fid: str, body: ComicFrameUpdate):
+    update_data = body.dict(exclude_none=True)
+    result = {}
+    def _update(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        _, frame = get_comic_frame_or_404(project, fid)
+        frame.update(update_data)
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_update)
+    return result["project"]
+
+@app.delete("/api/comic/projects/{pid}/frames/{fid}")
+async def delete_comic_frame(pid: str, fid: str):
+    def _del(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project["frames"] = [f for f in project.get("frames", []) if f["id"] != fid]
+        return projects
+    atomic_update_comic_projects(_del)
+    return {"ok": True}
+
+@app.post("/api/comic/projects/{pid}/frames/reorder")
+async def reorder_comic_frames(pid: str, body: ComicFrameReorder):
+    result = {}
+    def _reorder(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        frames_by_id = {f["id"]: f for f in project.get("frames", [])}
+        existing_ids = set(frames_by_id.keys())
+        incoming_ids = body.frame_ids
+        if len(incoming_ids) != len(existing_ids) or set(incoming_ids) != existing_ids:
+            raise HTTPException(status_code=400, detail="frame_ids 必须包含且仅包含所有现有分镜 ID，且不能重复")
+        project["frames"] = [frames_by_id[fid] for fid in incoming_ids]
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_reorder)
+    return result["project"]
+
+
+@app.post("/api/comic/projects/{pid}/analyze_storyboard")
+async def analyze_storyboard(pid: str):
+    _, project_snapshot = get_comic_project_or_404(pid)
+    script_text = project_snapshot.get('original_text', '')
+    if len(script_text) > COMIC_TEXT_MAX_LEN:
+        raise HTTPException(status_code=400, detail=f"脚本过长，最多 {COMIC_TEXT_MAX_LEN} 字符")
+    provider_id = get_primary_provider_id(load_api_providers())
+    system_prompt = "You are a storyboard director. Convert a script into storyboard frames. Return JSON only."
+    user_prompt = (
+        "Convert this script into storyboard frames. Return a JSON array with this exact structure:\n"
+        "[{\"action_description\": str, \"dialogue\": str, \"camera_movement\": str, \"image_prompt\": str}]\n"
+        "Max 20 frames. Keep each frame concise.\n\n"
+        f"Script:\n{script_text}"
+    )
+    raw_text = await call_chat_completion(
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+        provider_id=provider_id,
+    )
+    arr_match = re.search(r'\[.*\]', raw_text, re.DOTALL)
+    if not arr_match:
+        raise HTTPException(status_code=502, detail="LLM 未返回有效的分镜数组，请重试")
+    try:
+        frames_data = json.loads(arr_match.group())
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=502, detail="LLM 返回的 JSON 无法解析，请重试")
+    if not isinstance(frames_data, list) or not frames_data:
+        raise HTTPException(status_code=502, detail="LLM 返回了空的分镜列表，请重试")
+
+    new_frames = []
+    for fd in frames_data:
+        if not isinstance(fd, dict):
+            continue
+        new_frames.append({
+            "id": str(uuid.uuid4()),
+            "action_description": str(fd.get("action_description") or ""),
+            "dialogue": str(fd.get("dialogue") or ""),
+            "camera_movement": str(fd.get("camera_movement") or ""),
+            "image_prompt": str(fd.get("image_prompt") or ""),
+            "image_url": "",
+            "locked": False,
+            "selected_video_id": None,
+            "character_ids": [],
+            "scene_id": None,
+            "prop_ids": [],
+            "created_at": time.time(),
+        })
+
+    result = {}
+    def _save(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project["frames"] = new_frames
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_save)
+    return result["project"]
+
+
+async def _bg_render_frame(task_id: str, pid: str, fid: str):
+    try:
+        _update_task(task_id, status="running", total=1)
+        _, project_snapshot = get_comic_project_or_404(pid)
+        _, frame_snapshot = get_comic_frame_or_404(project_snapshot, fid)
+        provider = get_api_provider(get_primary_provider_id(load_api_providers()))
+        art_direction = project_snapshot.get("art_direction") or {}
+        project_model = art_direction.get("image_model", "").strip()
+        image_models = provider.get("image_models") or [IMAGE_MODEL]
+        model = selected_model(project_model or image_models[0], IMAGE_MODEL)
+        style_prompt = art_direction.get("style_prompt", "")
+        negative_prompt = art_direction.get("style_negative_prompt", "")
+        base_prompt = frame_snapshot.get("image_prompt") or frame_snapshot.get("action_description") or ""
+        prompt = f"{style_prompt}. {base_prompt}".strip(". ") if style_prompt else base_prompt
+        if negative_prompt:
+            prompt = f"{prompt} Avoid: {negative_prompt}"
+        image_data, _ = await generate_ai_image(prompt, "1536x1024", "auto", model, None, provider["id"])
+        image_url = await save_ai_image_to_output(image_data, prefix="comic_frame_")
+        result_holder = {}
+        def _save(projects):
+            project = next((p for p in projects if p["id"] == pid), None)
+            if not project:
+                return projects
+            _, frame = get_comic_frame_or_404(project, fid)
+            frame["image_url"] = image_url
+            result_holder["project"] = project
+            return projects
+        atomic_update_comic_projects(_save)
+        _update_task(task_id, status="completed", progress=1, result={"project": result_holder.get("project", {})})
+    except asyncio.CancelledError:
+        _update_task(task_id, status="cancelled")
+    except Exception as e:
+        _update_task(task_id, status="failed", error=str(e))
+
+@app.post("/api/comic/projects/{pid}/frames/{fid}/render")
+async def render_comic_frame(pid: str, fid: str):
+    _, project_snapshot = get_comic_project_or_404(pid)
+    get_comic_frame_or_404(project_snapshot, fid)  # validate early
+    task_id = str(uuid.uuid4())
+    _create_task(task_id)
+    at = asyncio.create_task(_bg_render_frame(task_id, pid, fid))
+    _update_task(task_id, _asyncio_task=at)
+    return {"_task_id": task_id}
+
+@app.post("/api/comic/projects/{pid}/frames/{fid}/generate_video")
+async def generate_comic_frame_video(pid: str, fid: str):
+    video_task = {
+        "id": str(uuid.uuid4()),
+        "frame_id": fid,
+        "status": "failed",
+        "video_url": "",
+        "duration": 5,
+        "model": "stub",
+        "message": "视频生成需要配置视频提供商",
+        "created_at": time.time(),
+    }
+    result = {}
+    def _add(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        get_comic_frame_or_404(project, fid)
+        project.setdefault("video_tasks", []).append(video_task)
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_add)
+    return result["project"]
+
+@app.post("/api/comic/projects/{pid}/frames/{fid}/select_video")
+async def select_comic_frame_video(pid: str, fid: str, body: ComicSelectVideo):
+    result = {}
+    def _select(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        _, frame = get_comic_frame_or_404(project, fid)
+        video_tasks = {t["id"]: t for t in project.get("video_tasks", [])}
+        task = video_tasks.get(body.video_id)
+        if not task or task.get("frame_id") != fid:
+            raise HTTPException(status_code=400, detail="video_id 不属于该分镜帧")
+        frame["selected_video_id"] = body.video_id
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_select)
+    return result["project"]
+
+@app.post("/api/comic/projects/{pid}/merge_videos")
+async def merge_comic_videos(pid: str):
+    _, project_snapshot = get_comic_project_or_404(pid)
+    frames = project_snapshot.get("frames", [])
+    video_tasks_by_id = {t["id"]: t for t in project_snapshot.get("video_tasks", [])}
+    selected = [f for f in frames if f.get("selected_video_id")]
+    if not selected:
+        raise HTTPException(status_code=400, detail="没有已选择的视频")
+    video_files = []
+    for f in selected:
+        task = video_tasks_by_id.get(f["selected_video_id"])
+        if task and task.get("video_url"):
+            video_path = os.path.realpath(os.path.join(BASE_DIR, task["video_url"].lstrip("/")))
+            if not video_path.startswith(os.path.realpath(OUTPUT_DIR) + os.sep):
+                continue
+            if os.path.exists(video_path):
+                video_files.append(video_path)
+    if not video_files:
+        raise HTTPException(status_code=400, detail="没有可用的视频文件")
+    import subprocess
+    ffmpeg_path = shutil.which("ffmpeg")
+    if not ffmpeg_path:
+        raise HTTPException(status_code=500, detail="ffmpeg 未安装，无法合并视频")
+    list_file = os.path.join(OUTPUT_DIR, f"merge_list_{pid}.txt")
+    output_path = os.path.join(OUTPUT_DIR, f"merged_{pid}.mp4")
+    try:
+        with open(list_file, "w") as lf:
+            for vf in video_files:
+                lf.write(f"file '{vf}'\n")
+        proc = subprocess.run(
+            [ffmpeg_path, "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c", "copy", output_path],
+            capture_output=True, text=True, timeout=300
+        )
+        if proc.returncode != 0:
+            raise HTTPException(status_code=500, detail=f"ffmpeg 合并失败: {proc.stderr[:500]}")
+    finally:
+        if os.path.exists(list_file):
+            os.remove(list_file)
+    merged_url = f"/output/merged_{pid}.mp4"
+    result = {}
+    def _save(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project["merged_video_url"] = merged_url
+        result["project"] = project
+        return projects
+    atomic_update_comic_projects(_save)
+    return result["project"]
 
 if __name__ == "__main__":
     import uvicorn
