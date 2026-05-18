@@ -805,6 +805,8 @@ class ComicGenerateAssetsRequest(BaseModel):
     character_size: str = "1024x1024"
     scene_size: str = "1536x1024"
     prop_size: str = "1024x1024"
+    provider_id: Optional[str] = None
+    image_model: Optional[str] = None
 
 class ComicAssetVariantAction(BaseModel):
     variant_id: str
@@ -4498,11 +4500,11 @@ async def _bg_generate_assets(task_id: str, pid: str, body):
         _update_task(task_id, status="running")
         _, project_snapshot = get_comic_project_or_404(pid)
         art_direction = project_snapshot.get("art_direction") or {}
-        req_provider_id = art_direction.get("provider_id") or get_primary_provider_id(load_api_providers())
+        req_provider_id = (body.provider_id if body and body.provider_id else None) or art_direction.get("provider_id") or get_primary_provider_id(load_api_providers())
         provider = get_api_provider(req_provider_id)
-        project_model = art_direction.get("image_model", "").strip()
+        req_model = (body.image_model if body and body.image_model else None) or art_direction.get("image_model", "").strip()
         image_models = provider.get("image_models") or [IMAGE_MODEL]
-        model = selected_model(project_model or image_models[0], IMAGE_MODEL)
+        model = selected_model(req_model or image_models[0], IMAGE_MODEL)
         style_prompt = art_direction.get("style_prompt", "")
         negative_prompt = art_direction.get("style_negative_prompt", "")
 

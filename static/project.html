@@ -1240,8 +1240,9 @@
             { id: 2, label: () => tr('2.风格', '2.Style') },
             { id: 3, label: () => tr('3.资产', '3.Assets') },
             { id: 4, label: () => tr('4.分镜', '4.Storyboard') },
-            { id: 5, label: () => tr('5.动态', '5.Motion') },
-            { id: 6, label: () => tr('6.合成', '6.Compose') }
+            // DEFERRED: step 5/6 暂时隐藏，待决定保留或摘除，见 docs/待办.md
+            // { id: 5, label: () => tr('5.动态', '5.Motion') },
+            // { id: 6, label: () => tr('6.合成', '6.Compose') }
         ];
 
         const contentPanel = document.getElementById('contentPanel');
@@ -2922,6 +2923,8 @@
                         character_size: ratioToSize((state.aspectRatio || {}).character || '1:1'),
                         scene_size: ratioToSize((state.aspectRatio || {}).scene || '16:9'),
                         prop_size: ratioToSize((state.aspectRatio || {}).prop || '1:1'),
+                        provider_id: state.selectedProviderId || undefined,
+                        image_model: state.selectedImageModel || undefined,
                     })
                 });
                 state.generatingTaskId = _task_id;
@@ -2971,7 +2974,8 @@
                         batch_size: batchSize,
                         prompt: opts.prompt || '',
                         size: ratioToSize((state.aspectRatio || {})[ratioType] || (ratioType === 'scene' ? '16:9' : '1:1')),
-                        use_current_as_ref: opts.useCurrentAsRef || false
+                        use_current_as_ref: opts.useCurrentAsRef || false,
+                        provider_id: state.selectedProviderId || undefined
                     })
                 });
                 state.regenAssets[key] = { taskId: _task_id };
