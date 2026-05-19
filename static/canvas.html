@@ -86,6 +86,7 @@
         .links { position:absolute; inset:0; width:6000px; height:4000px; overflow:visible; pointer-events:none; z-index:1; }
         .link { stroke:var(--faint); stroke-width:2.5; fill:none; opacity:.82; pointer-events:none; }
         .link.audio-link { stroke:#7c3aed; stroke-dasharray:4 3; opacity:.72; }
+        .link.video-link { stroke:#2563eb; stroke-dasharray:4 3; opacity:.72; }
         .link.temp { stroke:var(--strong); stroke-dasharray:6 6; }
         .link.knife-trail { stroke:#ef4444; stroke-width:2.4; stroke-dasharray:7 6; opacity:.88; filter:drop-shadow(0 0 6px rgba(239,68,68,.35)); }
         .link-hit { stroke:transparent; stroke-width:18; fill:none; pointer-events:stroke; }
@@ -118,6 +119,9 @@
         .gen-run-row .comfy-run { flex:0 0 40px; margin-top:0; }
         .gen-run-row .llm-run { flex:0 0 36px; margin-top:0; }
         .video-node { width:380px; }
+        .seedance-node { width:435px; min-width:435px; min-height:420px; }
+        .node.sized.seedance-node .generator-body { height:100%; display:flex; flex-direction:column; }
+        .node.sized.seedance-node > .node-body { overflow:hidden; }
         .node.sized.video-node .generator-body { height:100%; display:flex; flex-direction:column; }
         .node.sized.video-node .input-list { flex:1; min-height:64px; max-height:none; }
         .node.sized.video-node .gen-run-row,
@@ -323,9 +327,13 @@
         .port.out { right:-15px; }
         .port.out-audio { right:-15px; top:auto; bottom:18%; transform:translateY(50%); }
         .port.out-audio::after { background:#7c3aed; box-shadow:0 0 0 1px #a78bfa; }
-        .port.in-audio { left:-29px; top:auto; bottom:18%; transform:translateY(50%); }
+        .port.in-audio { left:-29px; top:66%; transform:translateY(-50%); }
         .port.in-audio::after { background:#7c3aed; box-shadow:0 0 0 1px #a78bfa; }
+        .port.in-video { left:-29px; top:34%; transform:translateY(-50%); }
+        .port.in-video::after { background:#2563eb; box-shadow:0 0 0 1px #60a5fa; }
         .node > .port { top:50%; }
+        .node > .port.in-audio { top:66%; }
+        .node > .port.in-video { top:34%; }
         .group-node,.promptGroup-node { min-width:260px; background:rgba(255,255,255,.96); border:1px solid #e8edf3; box-shadow:0 16px 42px rgba(15,23,42,.08); z-index:0; }
         .group-node .node-head,.promptGroup-node .node-head { background:#fff; border-bottom:1px solid #f1f5f9; }
         .llm-node { width:420px; }
@@ -751,9 +759,19 @@
         }
         .sdn-chip { display:inline-block; padding:1px 5px; margin:0 1px; border-radius:3px; font-size:10px; line-height:1.4; vertical-align:baseline; user-select:none; cursor:default; }
         .sdn-chip-image { background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.4); color:#6ee7b7; }
-        .sdn-chip-video { background:rgba(245,158,11,.15); border:1px solid rgba(245,158,11,.4); color:#fcd34d; }
+        .sdn-chip-video { background:rgba(59,130,246,.15); border:1px solid rgba(59,130,246,.4); color:#93c5fd; }
         .sdn-chip-audio { background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.4); color:#a78bfa; }
+        .sdn-chip-overflow { background:rgba(239,68,68,.15) !important; border:1px solid rgba(239,68,68,.5) !important; color:#fca5a5 !important; text-decoration:line-through; }
         .sdn-prompt[contenteditable]:empty::before { content:attr(data-placeholder); color:#6b7280; pointer-events:none; }
+        .sdn-prompt:focus-visible { border-color:#60a5fa; box-shadow:0 0 0 2px rgba(96,165,250,.3); }
+        .sdn-media-capsule { display:inline-flex; align-items:center; gap:3px; padding:2px 6px 2px 2px; border-radius:999px; border:1px solid #374151; background:#1f2937; cursor:pointer; color:#9ca3af; font:inherit; font-size:9px; white-space:nowrap; appearance:none; transition:border-color .15s, background .15s; height:20px; max-width:60px; overflow:hidden; box-sizing:border-box; }
+        .sdn-media-capsule:hover { border-color:#60a5fa; background:#1e3a5f; }
+        .sdn-media-capsule:focus-visible { outline:2px solid #60a5fa; outline-offset:1px; }
+        .sdn-media-capsule img, .sdn-media-capsule .sdn-capsule-icon { width:16px; height:16px; border-radius:50%; object-fit:cover; flex-shrink:0; }
+        .sdn-media-capsule .sdn-capsule-icon { display:flex; align-items:center; justify-content:center; background:#111827; font-size:10px; }
+        .sdn-duration-slider { display:flex; align-items:center; gap:4px; flex:1; min-width:0; }
+        .sdn-duration-slider input[type=range] { flex:1; height:4px; accent-color:#f97316; cursor:pointer; }
+        .sdn-duration-slider .sdn-dur-val { font-size:10px; color:#9ca3af; min-width:20px; text-align:right; font-variant-numeric:tabular-nums; }
     </style>
     <link rel="stylesheet" href="/static/theme.css?v=20260510-studio-pages-blue-dark10">
 </head>
@@ -776,7 +794,7 @@
                 <button class="tool-btn" onclick="addGeneratorNode()"><i data-lucide="wand-sparkles" class="w-4 h-4"></i><span data-i18n="canvas.apiGenerate">API生成</span></button>
                 <button class="tool-btn" onclick="addMsGenNode()"><i data-lucide="cloud-lightning" class="w-4 h-4"></i><span data-i18n="canvas.msGenerate">MS生成</span></button>
                 <button class="tool-btn" onclick="addVideoNode()"><i data-lucide="clapperboard" class="w-4 h-4"></i><span data-i18n="canvas.videoGenerate">视频生成</span></button>
-                <button class="tool-btn" onclick="addSeedanceNode()"><i data-lucide="film" class="w-4 h-4"></i><span>Seedance</span></button>
+                <button class="tool-btn" onclick="addSeedanceNode()"><i data-lucide="film" class="w-4 h-4"></i><span data-i18n="canvas.seedance">Seedance</span></button>
                 <button class="tool-btn" onclick="addComfyNode()"><i data-lucide="workflow" class="w-4 h-4"></i>ComfyUI</button>
                 <button class="tool-btn" onclick="addOutputNode()"><i data-lucide="circle-dot" class="w-4 h-4"></i>Output</button>
                 <button class="tool-btn" onclick="groupSelectedImages()"><i data-lucide="group" class="w-4 h-4"></i><span data-i18n="canvas.group">分组</span></button>
@@ -2561,11 +2579,9 @@
                 y:p.y,
                 model:'doubao-seedance-2-0-260128',
                 duration:5,
-                aspectRatio:'16:9',
-                resolution:'',
+                aspectRatio:'adaptive',
+                resolution:'720p',
                 prompt:'',
-                generateAudio:false,
-                watermark:false,
                 seedanceMode:'single_image',
                 referenceVideos:[],
                 inputs:[],
@@ -4495,7 +4511,8 @@
             if(canInput) el.insertAdjacentHTML('beforeend', `<div class="port in" title="${tr('canvas.connectHere')}"></div>`);
             if(canOutput) el.insertAdjacentHTML('beforeend', `<div class="port out" title="${tr('canvas.dragConnect')}"></div>`);
             if(node.type === 'asset' && node.voiceRefUrl) el.insertAdjacentHTML('beforeend', `<div class="port out-audio" title="${tr('canvas.dragConnect')} (Audio)"></div>`);
-            if(node.type === 'seedance') el.insertAdjacentHTML('beforeend', `<div class="port in-audio" title="${tr('canvas.connectHere')} (Audio)"></div>`);
+            if(node.type === 'seedance') el.insertAdjacentHTML('beforeend', `<div class="port in-audio" aria-label="音频输入端口" title="${tr('canvas.connectHere')} (Audio)"></div>`);
+            if(node.type === 'seedance') el.insertAdjacentHTML('beforeend', `<div class="port in-video" aria-label="视频输入端口" title="${tr('canvas.connectHere')} (Video)"></div>`);
             el.insertAdjacentHTML('beforeend', `<div class="resize-handle" title="${tr('canvas.resize')}"></div>`);
             el.querySelector('.node-head').onmousedown = e => { if(e.button === 0) startNodeDrag(e, node); };
             el.querySelector('.resize-handle').onmousedown = e => { if(e.button === 0 && !e.shiftKey) startNodeResize(e, node); };
@@ -4506,6 +4523,8 @@
             if(outAudio) outAudio.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'out-audio'); };
             const inAudio = el.querySelector('.port.in-audio');
             if(inAudio) inAudio.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'in-audio'); };
+            const inVideo = el.querySelector('.port.in-video');
+            if(inVideo) inVideo.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'in-video'); };
             const inp = el.querySelector('.port.in');
             if(inp) inp.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'in'); };
             return el;
@@ -5593,6 +5612,27 @@
             if (prompt.length === 0) frag.appendChild(document.createTextNode(''));
             root.replaceChildren(frag);
         }
+        function sdnTokenLimits(mode) {
+            if(mode === 'single_image') return {img:1, vid:0, aud:0};
+            if(mode === 'first_last_frame') return {img:2, vid:0, aud:0};
+            return {img:9, vid:3, aud:3};
+        }
+        function sdnMarkOverflowTokens(promptEl, mode) {
+            const limits = sdnTokenLimits(mode);
+            const chips = promptEl.querySelectorAll('.sdn-chip');
+            let imgIdx = 0, vidIdx = 0, audIdx = 0;
+            let hasOverflow = false;
+            chips.forEach(chip => {
+                const token = chip.dataset.sdnToken || '';
+                let over = false;
+                if(token.startsWith('[图片')){ imgIdx++; if(imgIdx > limits.img) over = true; }
+                else if(token.startsWith('[视频')){ vidIdx++; if(vidIdx > limits.vid) over = true; }
+                else if(token.startsWith('[音频')){ audIdx++; if(audIdx > limits.aud) over = true; }
+                chip.classList.toggle('sdn-chip-overflow', over);
+                if(over) hasOverflow = true;
+            });
+            return hasOverflow;
+        }
         function sdnInsertChipAtCursor(root, token) {
             root.focus();
             const sel = window.getSelection();
@@ -5621,53 +5661,47 @@
         function renderSeedanceBody(node){
             const wrap = document.createElement('div');
             wrap.className = 'generator-body';
-            const MODELS = [
-                {id:'doubao-seedance-2-0-260128', label:'Seedance 2.0 质量版'},
-                {id:'doubao-seedance-2-0-fast-260128', label:'Seedance 2.0 快速版'}
-            ];
             const curMode = node.seedanceMode || 'single_image';
             const MODES = [
                 {id:'single_image', label:'单图'},
                 {id:'first_last_frame', label:'首尾帧'},
                 {id:'multi_image', label:'多图参考'}
             ];
-            const modeHint = curMode === 'first_last_frame' ? '<div class="sdn-mode-hint" style="font-size:10px;color:#f97316;margin:3px 0">需要连接 2 张图片（首帧 + 尾帧）</div>'
-                : curMode === 'multi_image' ? '<div class="sdn-mode-hint" style="font-size:10px;color:#f97316;margin:3px 0">第 1 张为主图，其余为参考图</div>' : '';
-            const refVideosVal = (node.referenceVideos || []).filter(v=>v).join('\n');
-            const refVideosSection = curMode === 'multi_image' ? `<div class="sdn-ref-videos" style="margin-top:4px"><div class="setting-title">参考视频 URL（每行一个，最多3个）</div><textarea class="sdn-ref-videos-input" rows="2" placeholder="https://..." style="width:100%;resize:vertical;font-size:10px;padding:3px 5px;border-radius:4px;border:1px solid #374151;background:#1f2937;color:#e5e7eb;box-sizing:border-box">${escapeHtml(refVideosVal)}</textarea></div>` : '';
-            const modelOpts = MODELS.map(m => `<option value="${m.id}" ${node.model===m.id?'selected':''}>${m.label}</option>`).join('');
+            const modeHintText = curMode === 'first_last_frame' ? '首尾帧模式：需要连接 2 张图片（首帧 + 尾帧）'
+                : curMode === 'multi_image' ? '多图参考模式：图片 0~9 / 视频 0~3 / 音频 0~3'
+                : '单图模式：连接 1 张图片作为首帧';
             const inventory = buildSeedanceTokenInventory(node);
             const previewItems = [
                 ...inventory.images.map((img,i) => {
-                    let roleTag = '';
-                    if(curMode === 'first_last_frame' && i === 0) roleTag = '<span style="font-size:8px;color:#f97316;display:block">首帧</span>';
-                    else if(curMode === 'first_last_frame' && i === 1) roleTag = '<span style="font-size:8px;color:#f97316;display:block">尾帧</span>';
-                    else if(curMode === 'multi_image' && i === 0) roleTag = '<span style="font-size:8px;color:#f97316;display:block">主图</span>';
-                    return `<div class="sdn-media-thumb" data-token="[图片${img.labelNumber}]" style="flex-shrink:0;cursor:pointer;text-align:center;border:1px solid #374151;border-radius:4px;padding:2px;background:#1f2937" title="点击插入 [图片${img.labelNumber}]"><img src="${escapeHtml(img.url)}" style="width:48px;height:36px;object-fit:cover;border-radius:3px;display:block"><span style="font-size:9px;color:#9ca3af;display:block">图片${img.labelNumber}</span>${roleTag}</div>`;
+                    let label = '';
+                    if(curMode === 'single_image') label = '参考图';
+                    else if(curMode === 'first_last_frame') label = i === 0 ? '首帧' : '尾帧';
+                    else label = `图片${img.labelNumber}`;
+                    return `<button type="button" class="sdn-media-capsule" data-token="[图片${img.labelNumber}]" aria-label="插入图片${img.labelNumber}"><img src="${escapeHtml(img.url)}" width="24" height="24" alt=""><span>${label}</span></button>`;
                 }),
-                ...inventory.videos.map(v => `<div class="sdn-media-thumb" data-token="[视频${v.labelNumber}]" style="flex-shrink:0;cursor:pointer;text-align:center;border:1px solid #374151;border-radius:4px;padding:2px;background:#1f2937" title="点击插入 [视频${v.labelNumber}]"><div style="width:48px;height:36px;display:flex;align-items:center;justify-content:center;background:#111827;border-radius:3px;font-size:16px">🎬</div><span style="font-size:9px;color:#9ca3af;display:block">视频${v.labelNumber}</span></div>`),
-                ...inventory.audios.map(a => `<div class="sdn-media-thumb" data-token="[音频${a.labelNumber}]" style="flex-shrink:0;cursor:pointer;text-align:center;border:1px solid #5b21b6;border-radius:4px;padding:2px;background:#1f2937" title="点击插入 [音频${a.labelNumber}]"><div style="width:48px;height:36px;display:flex;align-items:center;justify-content:center;background:#111827;border-radius:3px;font-size:16px;color:#a78bfa">♪</div><span style="font-size:9px;color:#a78bfa;display:block">音频${a.labelNumber}</span></div>`)
+                ...inventory.videos.map(v => `<button type="button" class="sdn-media-capsule" data-token="[视频${v.labelNumber}]" aria-label="插入视频${v.labelNumber}"><span class="sdn-capsule-icon">🎬</span><span>视频${v.labelNumber}</span></button>`),
+                ...inventory.audios.map(a => `<button type="button" class="sdn-media-capsule" data-token="[音频${a.labelNumber}]" aria-label="插入音频${a.labelNumber}"><span class="sdn-capsule-icon" style="color:#a78bfa">♪</span><span>音频${a.labelNumber}</span></button>`)
             ];
-            const mediaPreviewHtml = previewItems.length ? `<div class="sdn-media-preview" style="display:flex;gap:4px;overflow-x:auto;padding:4px 0;margin-bottom:4px">${previewItems.join('')}</div>` : '';
+            const capsuleExtra = curMode !== 'multi_image' ? 'pointer-events:none;opacity:.7;' : '';
+            const mediaPreviewHtml = previewItems.length ? `<div class="sdn-media-preview" style="display:flex;flex-wrap:wrap;gap:6px;padding:4px 0;${capsuleExtra}">${previewItems.join('')}</div>` : '';
             wrap.innerHTML = `
-                <div class="gen-settings" style="margin-bottom:6px">
+                <div class="gen-settings sdn-prompt-section" style="margin-bottom:6px;flex:1 0 auto;display:flex;flex-direction:column">
+                    <div class="sdn-prompt" contenteditable="true" role="textbox" aria-label="视频描述" data-placeholder="描述视频内容…${previewItems.length ? ' 点击下方素材插入引用token' : ''}" style="width:100%;flex:1 0 104px;overflow-y:auto;font-size:11px;padding:4px 6px;border-radius:4px;border:1px solid #374151;background:#1f2937;color:#e5e7eb;box-sizing:border-box;white-space:pre-wrap;word-break:break-word;outline:none;line-height:1.6"></div>
+                    <div class="sdn-status-bar" aria-live="polite" style="font-size:10px;color:#9ca3af;padding:3px 6px;margin-top:4px;border-radius:4px;background:rgba(156,163,175,.08)">${modeHintText}</div>
                     ${mediaPreviewHtml}
-                    <div class="sdn-prompt" contenteditable="true" data-placeholder="描述视频内容...${previewItems.length ? ' 点击上方素材插入引用token' : ''}" style="width:100%;min-height:52px;max-height:120px;overflow-y:auto;resize:vertical;font-size:11px;padding:4px 6px;border-radius:4px;border:1px solid #374151;background:#1f2937;color:#e5e7eb;box-sizing:border-box;white-space:pre-wrap;word-break:break-word;outline:none;line-height:1.6"></div>
                 </div>
-                <div class="gen-settings" style="margin-bottom:6px">
-                    <div class="sdn-mode-btns" style="display:flex;gap:2px;margin-bottom:4px">
-                        ${MODES.map(m => `<button type="button" class="sdn-mode-btn${m.id===curMode?' active':''}" data-mode="${m.id}" style="flex:1;font-size:10px;padding:3px 0;border-radius:4px;border:1px solid ${m.id===curMode?'#f97316':'#374151'};background:${m.id===curMode?'#7c2d12':'#1f2937'};color:${m.id===curMode?'#fed7aa':'#9ca3af'};cursor:pointer">${m.label}</button>`).join('')}
-                    </div>
-                    ${modeHint}${refVideosSection}
-                </div>
-                <div class="gen-settings">
-                    <div class="gen-settings-row">
-                        <select class="select-lite sdn-model" style="flex:1">${modelOpts}</select>
-                    </div>
-                    <div class="gen-settings-row">
-                        <label class="field" style="flex:1">
+                <div class="gen-settings" style="margin-top:auto">
+                    <div class="gen-settings-row" style="gap:6px;flex-wrap:nowrap">
+                        <label class="field" style="flex:none">
+                            <div class="setting-title">模式</div>
+                            <select class="select-lite sdn-mode-select" style="min-width:0;width:auto;padding:0 8px">
+                                ${MODES.map(m => `<option value="${m.id}" ${m.id===curMode?'selected':''}>${m.label}</option>`).join('')}
+                            </select>
+                        </label>
+                        <label class="field" style="flex:none">
                             <div class="setting-title">比例</div>
-                            <select class="select-lite sdn-aspect compact-select">
+                            <select class="select-lite sdn-aspect" style="min-width:0;width:auto;padding:0 8px">
+                                <option value="adaptive" ${(!node.aspectRatio||node.aspectRatio==='adaptive')?'selected':''}>自适应</option>
                                 <option value="16:9" ${node.aspectRatio==='16:9'?'selected':''}>16:9</option>
                                 <option value="9:16" ${node.aspectRatio==='9:16'?'selected':''}>9:16</option>
                                 <option value="1:1" ${node.aspectRatio==='1:1'?'selected':''}>1:1</option>
@@ -5676,71 +5710,91 @@
                                 <option value="21:9" ${node.aspectRatio==='21:9'?'selected':''}>21:9</option>
                             </select>
                         </label>
-                        <label class="field" style="flex:1">
+                        <label class="field" style="flex:none">
                             <div class="setting-title">分辨率</div>
-                            <select class="select-lite sdn-resolution compact-select">
-                                <option value="" ${!node.resolution?'selected':''}>Auto</option>
+                            <select class="select-lite sdn-resolution" style="min-width:0;width:72px;padding:0 8px">
                                 <option value="480p" ${node.resolution==='480p'?'selected':''}>480p</option>
-                                <option value="720p" ${node.resolution==='720p'?'selected':''}>720p</option>
-                                <option value="1080p" ${node.resolution==='1080p'?'selected':''}>1080p</option>
+                                <option value="720p" ${(!node.resolution||node.resolution==='720p')?'selected':''}>720p</option>
+                                ${(node.model||'').indexOf('fast')===-1?`<option value="1080p" ${node.resolution==='1080p'?'selected':''}>1080p</option>`:''}
                             </select>
                         </label>
-                        <label class="field" style="flex:1">
-                            <div class="setting-title">时长(秒)</div>
-                            <input class="setting-input sdn-duration" type="number" min="1" max="30" step="1" value="${Number(node.duration||5)}">
+                        <label class="field" style="flex:none">
+                            <div class="setting-title">模型</div>
+                            <select class="select-lite sdn-model" style="min-width:0;width:auto;padding:0 8px">
+                                <option value="doubao-seedance-2-0-260128" ${(node.model||'doubao-seedance-2-0-260128')==='doubao-seedance-2-0-260128'?'selected':''}>Seedance-2.0</option>
+                                <option value="doubao-seedance-2-0-fast-260128" ${node.model==='doubao-seedance-2-0-fast-260128'?'selected':''}>Seedance-2.0-Fast</option>
+                            </select>
                         </label>
                     </div>
-                    <div class="gen-settings-row" style="flex-wrap:wrap">
-                        <button type="button" class="setting-check ${node.generateAudio?'active':''}" data-sdn-toggle="generateAudio"><span class="check-dot"></span>生成音频</button>
-                        <button type="button" class="setting-check ${node.watermark?'active':''}" data-sdn-toggle="watermark"><span class="check-dot"></span>水印</button>
+                    <div class="gen-settings-row" style="gap:6px;margin-top:6px">
+                        <label class="field" style="flex:1;min-width:0">
+                            <div class="setting-title">时长</div>
+                            <div class="sdn-duration-slider">
+                                <input type="range" class="sdn-duration" min="4" max="15" step="1" value="${Number(node.duration||5)}">
+                                <span class="sdn-dur-val">${Number(node.duration||5)}s</span>
+                            </div>
+                        </label>
                     </div>
                 </div>
                 <div class="gen-run-row">
-                    <button class="gen-btn" type="button">生成</button>
+                    <button class="gen-btn" type="button">生成视频</button>
                 </div>`;
             const promptEl = wrap.querySelector('.sdn-prompt');
+            const statusBar = wrap.querySelector('.sdn-status-bar');
             sdnRenderPromptContent(promptEl, node.prompt || '');
-            promptEl.addEventListener('input', () => { node.prompt = sdnSerializePrompt(promptEl); scheduleSave(); });
-            promptEl.addEventListener('blur', () => { sdnRenderPromptContent(promptEl, node.prompt || ''); });
+            function refreshOverflow(){
+                const has = sdnMarkOverflowTokens(promptEl, node.seedanceMode || 'single_image');
+                if(has){ statusBar.textContent = '引用素材超出当前模式限制，请删除红色标记的引用'; statusBar.style.color = '#f87171'; statusBar.style.background = 'rgba(239,68,68,.08)'; }
+                else { statusBar.textContent = modeHintText; statusBar.style.color = '#9ca3af'; statusBar.style.background = 'rgba(156,163,175,.08)'; }
+            }
+            refreshOverflow();
+            promptEl.addEventListener('input', () => { node.prompt = sdnSerializePrompt(promptEl); scheduleSave(); refreshOverflow(); });
+            promptEl.addEventListener('blur', () => { sdnRenderPromptContent(promptEl, node.prompt || ''); refreshOverflow(); });
             promptEl.addEventListener('mousedown', e => e.stopPropagation());
             promptEl.addEventListener('keydown', e => e.stopPropagation());
-            wrap.querySelectorAll('.sdn-media-thumb').forEach(thumb => {
+            wrap.querySelectorAll('.sdn-media-capsule').forEach(thumb => {
                 thumb.addEventListener('mousedown', e => e.stopPropagation());
+                if(curMode !== 'multi_image') return;
                 thumb.onclick = e => {
                     e.stopPropagation();
                     const token = thumb.dataset.token;
+                    const mode = node.seedanceMode || 'single_image';
+                    const existing = (node.prompt || '').match(/\[(图片|视频|音频)\d+\]/g) || [];
+                    const imgCount = existing.filter(t => t.startsWith('[图片')).length;
+                    const vidCount = existing.filter(t => t.startsWith('[视频')).length;
+                    const audCount = existing.filter(t => t.startsWith('[音频')).length;
+                    if(token.startsWith('[图片')) {
+                        if(mode === 'single_image' && imgCount >= 1){ showToast('单图模式仅支持 1 张图片引用'); return; }
+                        if(mode === 'first_last_frame' && imgCount >= 2){ showToast('首尾帧模式仅支持 2 张图片引用'); return; }
+                        if(mode === 'multi_image' && imgCount >= 9){ showToast('多图参考模式最多 9 张图片引用'); return; }
+                    } else if(token.startsWith('[视频')) {
+                        if(mode !== 'multi_image'){ showToast('仅多图参考模式支持视频引用'); return; }
+                        if(vidCount >= 3){ showToast('最多 3 段视频引用'); return; }
+                    } else if(token.startsWith('[音频')) {
+                        if(audCount >= 3){ showToast('最多 3 段音频引用'); return; }
+                    }
                     sdnInsertChipAtCursor(promptEl, token);
                     node.prompt = sdnSerializePrompt(promptEl);
                     scheduleSave();
+                    refreshOverflow();
                 };
             });
-            wrap.querySelectorAll('.sdn-mode-btn').forEach(btn => {
-                btn.onclick = e => {
-                    e.stopPropagation();
-                    const prev = node.seedanceMode;
-                    node.seedanceMode = btn.dataset.mode;
-                    if(prev === 'multi_image' && node.seedanceMode !== 'multi_image') node.referenceVideos = [];
-                    scheduleSave();
-                    const card = wrap.closest('.node');
-                    if(card){ const body = card.querySelector('.node-body'); if(body){ body.innerHTML=''; body.appendChild(renderSeedanceBody(node)); } }
-                };
-            });
-            const refInput = wrap.querySelector('.sdn-ref-videos-input');
-            if(refInput) refInput.oninput = e => { node.referenceVideos = e.target.value.split('\n').map(s=>s.trim()).filter(s=>s).slice(0,3); scheduleSave(); };
-            wrap.querySelector('.sdn-model').onchange = e => { node.model = e.target.value; scheduleSave(); };
+            wrap.querySelector('.sdn-mode-select').onchange = e => {
+                e.stopPropagation();
+                node.seedanceMode = e.target.value;
+                scheduleSave();
+                const card = wrap.closest('.node');
+                if(card){ const body = card.querySelector('.node-body'); if(body){ body.innerHTML=''; body.appendChild(renderSeedanceBody(node)); } }
+            };
+            wrap.querySelector('.sdn-model').onchange = e => {
+                node.model = e.target.value;
+                if(node.model.indexOf('fast')!==-1 && node.resolution==='1080p') node.resolution = '720p';
+                scheduleSave(); render();
+            };
             wrap.querySelector('.sdn-aspect').onchange = e => { node.aspectRatio = e.target.value; scheduleSave(); };
             wrap.querySelector('.sdn-resolution').onchange = e => { node.resolution = e.target.value; scheduleSave(); };
-            wrap.querySelector('.sdn-duration').oninput = e => { node.duration = Math.max(1, Math.min(30, Number(e.target.value)||5)); scheduleSave(); };
-            wrap.querySelectorAll('[data-sdn-toggle]').forEach(btn => {
-                btn.onclick = e => {
-                    e.stopPropagation();
-                    const key = btn.dataset.sdnToggle;
-                    node[key] = !node[key];
-                    btn.classList.toggle('active', node[key]);
-                    scheduleSave();
-                };
-            });
-            wrap.querySelector('.gen-btn').onclick = e => { e.stopPropagation(); runCanvasGenerate(node.id); };
+            wrap.querySelector('.sdn-duration').oninput = e => { node.duration = Math.max(4, Math.min(15, Number(e.target.value)||5)); wrap.querySelector('.sdn-dur-val').textContent = node.duration + 's'; scheduleSave(); };
+            wrap.querySelector('.gen-btn').onclick = e => { e.stopPropagation(); if(sdnMarkOverflowTokens(promptEl, node.seedanceMode || 'single_image')){ alert('引用素材超出当前模式限制，请先删除红色标记的引用再生成'); return; } runCanvasGenerate(node.id); };
             return wrap;
         }
         function renderPromptPreview(container, promptInputs){
@@ -6130,7 +6184,7 @@
                 .map((url, i) => ({url, name:`${node.type || 'generated'}-${i + 1}.png`}));
         }
         function generatorSources(gen){
-            return connections.filter(c => c.to === gen.id).map(c => nodes.find(n => n.id === c.from)).filter(Boolean).map(n => {
+            return connections.filter(c => c.to === gen.id && !c.fromPort).map(c => nodes.find(n => n.id === c.from)).filter(Boolean).map(n => {
                 if(n.type === 'output' && (n.images||[]).length){
                     // 从 output 节点取最新一张图当作 reference 给下游
                     const last = [...n.images].reverse().map(outputUrlValue).find(Boolean);
@@ -6399,7 +6453,15 @@
             const sources = orderedSources(node, generatorSources(node));
             const imageRefs = sources.flatMap(s => s.refs || []);
             const images = imageRefs.map((ref, i) => ({labelNumber: i+1, url: ref.url, name: ref.name||''}));
-            const videoItems = (node.referenceVideos||[]).filter(v=>v);
+            const videoConns = connections.filter(c => c.to === node.id && c.fromPort === 'video');
+            const connectedVideoUrls = videoConns.flatMap(c => {
+                const src = nodes.find(n => n.id === c.from);
+                if(!src) return [];
+                const srcOut = outputForNode(src);
+                if(!srcOut) return [];
+                return (srcOut.images || []).map(outputUrlValue).filter(u => u && isVideoUrl(u));
+            });
+            const videoItems = [...connectedVideoUrls, ...(node.referenceVideos||[]).filter(v=>v)].slice(0, 3);
             const videos = videoItems.map((url, i) => ({labelNumber: i+1, url}));
             const audioConns = connections.filter(c => c.to === node.id && c.fromPort === 'audio');
             const audioItems = audioConns.map(c => nodes.find(n => n.id === c.from)).filter(Boolean).map(n => n.voiceRefUrl).filter(Boolean);
@@ -6434,16 +6496,24 @@
             const refs = sources.flatMap(s => s.refs || []);
             const mode = node.seedanceMode || 'single_image';
             if(mode === 'first_last_frame' && refs.length < 2){ alert('首尾帧模式需要连接 2 张图片'); return; }
-            if(mode === 'multi_image' && refs.length < 1){ alert('多图参考模式至少需要 1 张主图'); return; }
+            if(mode === 'multi_image' && refs.length < 1){ alert('多图参考模式至少需要 1 张图片'); return; }
             let imagePayload;
             if(mode === 'first_last_frame'){
                 imagePayload = [{url:refs[0].url, name:refs[0].name||'', role:'first_frame'}, {url:refs[1].url, name:refs[1].name||'', role:'last_frame'}];
             } else if(mode === 'multi_image'){
-                imagePayload = refs.map((r,i) => ({url:r.url, name:r.name||'', role: i===0?'first_frame':'reference_image'}));
+                imagePayload = refs.map(r => ({url:r.url, name:r.name||'', role:'reference_image'}));
             } else {
-                imagePayload = refs;
+                imagePayload = refs.map(r => ({url:r.url, name:r.name||'', role:'first_frame'}));
             }
-            let refVideos = (node.referenceVideos||[]).filter(v=>v);
+            const videoConns = connections.filter(c => c.to === node.id && c.fromPort === 'video');
+            const connectedVideos = videoConns.flatMap(c => {
+                const src = nodes.find(n => n.id === c.from);
+                if(!src) return [];
+                const srcOut = outputForNode(src);
+                if(!srcOut) return [];
+                return (srcOut.images || []).map(outputUrlValue).filter(u => u && isVideoUrl(u));
+            }).slice(0, 3);
+            let refVideos = [...connectedVideos, ...(node.referenceVideos||[]).filter(v=>v)].slice(0, 3);
             const tokenInventory = buildSeedanceTokenInventory(node);
             const tokenResult = parseSeedanceTokens(prompt, tokenInventory);
             const submissionPrompt = tokenResult.cleanPrompt || prompt;
@@ -6461,6 +6531,10 @@
                 refAudios = [...refAudios, ...extraAudios];
             }
             if(tokenResult.invalidTokens.length) showToast(`引用失效已移除: ${tokenResult.invalidTokens.join(', ')}`);
+            const limits = sdnTokenLimits(mode);
+            if(imagePayload.length > limits.img){ alert(`当前模式最多 ${limits.img} 张图片，实际 ${imagePayload.length} 张，请减少图片输入`); return; }
+            if(refVideos.length > limits.vid){ alert(`当前模式最多 ${limits.vid} 段视频，实际 ${refVideos.length} 段，请减少视频输入`); return; }
+            if(refAudios.length > limits.aud){ alert(`当前模式最多 ${limits.aud} 段音频，实际 ${refAudios.length} 段，请减少音频输入`); return; }
             let out = outputForNode(node, 460);
             const pendingId = uid('p');
             const run = runSnapshot(node, prompt, refs);
@@ -6468,6 +6542,12 @@
             if(!opts.cascade){ node.running = true; refreshRunNodes(node, out); }
             else refreshRunNodes(node, out);
             const providerId = resolveVideoProviderId(videoApiProviders()[0]?.id || 'comfly');
+            const sdnModel = node.model || 'doubao-seedance-2-0-260128';
+            const isFast = sdnModel.indexOf('fast') !== -1;
+            const validRes = isFast ? ['480p','720p'] : ['480p','720p','1080p'];
+            let sdnRes = node.resolution || '720p';
+            if(!validRes.includes(sdnRes)) sdnRes = '720p';
+            const sdnDur = Math.max(4, Math.min(15, Number(node.duration) || 5));
             try {
                 const result = await fetch('/api/canvas-video', {
                     method:'POST',
@@ -6475,15 +6555,13 @@
                     body:JSON.stringify({
                         prompt: submissionPrompt,
                         provider_id: providerId,
-                        model: node.model || 'doubao-seedance-2-0-260128',
-                        duration: Number(node.duration || 5),
-                        aspect_ratio: node.aspectRatio || '16:9',
-                        resolution: node.resolution || '',
+                        model: sdnModel,
+                        duration: sdnDur,
+                        aspect_ratio: node.aspectRatio || 'adaptive',
+                        resolution: sdnRes,
                         images: imagePayload,
                         videos: refVideos.length ? refVideos : undefined,
-                        reference_audio_urls: refAudios.length ? refAudios : undefined,
-                        generate_audio: Boolean(node.generateAudio),
-                        watermark: Boolean(node.watermark)
+                        reference_audio_urls: refAudios.length ? refAudios : undefined
                     })
                 }).then(async r => { if(!r.ok) throw new Error(await responseErrorMessage(r, '视频生成失败')); return r.json(); });
                 const meta = collectRunMeta(out, pendingId);
@@ -8148,7 +8226,8 @@
             const source = nodes.find(n => n.id === originId);
             const isAudioOut = originKind === 'out-audio';
             const isAudioIn = originKind === 'in-audio';
-            const fromPort = (isAudioOut || isAudioIn) ? 'audio' : undefined;
+            const isVideoIn = originKind === 'in-video';
+            const fromPort = (isAudioOut || isAudioIn) ? 'audio' : isVideoIn ? 'video' : undefined;
             tempLink = {from:originId, originKind, x1:src.x, y1:src.y, x2:src.x, y2:src.y};
             window.onmousemove = e2 => {
                 const p = screenToWorld(e2.clientX, e2.clientY);
@@ -8157,15 +8236,34 @@
                 renderLinks();
             };
             window.onmouseup = e2 => {
-                const targetKind = isAudioOut ? 'in-audio' : isAudioIn ? 'out-audio' : (originKind === 'out' ? 'in' : 'out');
-                const targetPort = nearestPort(e2.clientX, e2.clientY, targetKind);
+                let targetPort, resolvedFromPort = fromPort;
+                if(isAudioOut){
+                    targetPort = nearestPort(e2.clientX, e2.clientY, 'in-audio');
+                } else if(isAudioIn){
+                    targetPort = nearestPort(e2.clientX, e2.clientY, 'out-audio');
+                } else if(isVideoIn){
+                    targetPort = nearestPort(e2.clientX, e2.clientY, 'out');
+                } else if(originKind === 'out'){
+                    const pIn = nearestPort(e2.clientX, e2.clientY, 'in');
+                    const pVid = nearestPort(e2.clientX, e2.clientY, 'in-video');
+                    const dist = (port) => { if(!port) return Infinity; const r = port.getBoundingClientRect(); return Math.hypot(e2.clientX - r.left - r.width/2, e2.clientY - r.top - r.height/2); };
+                    if(dist(pVid) < dist(pIn)){ targetPort = pVid; resolvedFromPort = 'video'; }
+                    else { targetPort = pIn; }
+                } else {
+                    targetPort = nearestPort(e2.clientX, e2.clientY, 'out');
+                }
                 const target = targetPort?.closest('.node');
                 if(target){
                     const targetId = target.dataset.id;
                     const fromId = (originKind === 'out' || isAudioOut) ? originId : targetId;
                     const toId = (originKind === 'out' || isAudioOut) ? targetId : originId;
                     if(canConnect(fromId, toId)){
-                        if(!connections.some(c => c.from === fromId && c.to === toId && c.fromPort === fromPort)){ pushUndo(); connections.push({id:uid('c'), from:fromId, to:toId, fromPort:fromPort}); }
+                        if(resolvedFromPort === 'video'){
+                            const fromNode = nodes.find(n => n.id === fromId);
+                            const videoCapable = fromNode && (fromNode.type === 'output' || CANVAS_GENERATOR_TYPES.includes(fromNode.type));
+                            if(!videoCapable){ tempLink = null; renderLinks(); window.onmousemove = null; window.onmouseup = null; return; }
+                        }
+                        if(!connections.some(c => c.from === fromId && c.to === toId && c.fromPort === resolvedFromPort)){ pushUndo(); connections.push({id:uid('c'), from:fromId, to:toId, fromPort:resolvedFromPort}); }
                         syncGeneratorInputs();
                         scheduleSave();
                         render();
@@ -8247,7 +8345,14 @@
             return CANVAS_GENERATOR_TYPES.includes(to.type) && ['image','prompt','loop','group','promptGroup','output','llm','asset'].includes(from.type);
         }
         function sanitizeConnections(){
-            connections = (connections || []).filter(c => canConnect(c.from, c.to));
+            connections = (connections || []).filter(c => {
+                if(!canConnect(c.from, c.to)) return false;
+                if(c.fromPort === 'video'){
+                    const fromNode = nodes.find(n => n.id === c.from);
+                    if(!fromNode || !(fromNode.type === 'output' || CANVAS_GENERATOR_TYPES.includes(fromNode.type))) return false;
+                }
+                return true;
+            });
         }
         function endDrag(event=null){
             if(dragNode){
@@ -8368,7 +8473,8 @@
             }
             const w = el.offsetWidth || n.w || 260, h = el.offsetHeight || n.h || 160;
             if(kind === 'out-audio') return {x:n.x + w, y:n.y + h * 0.82};
-            if(kind === 'in-audio') return {x:n.x, y:n.y + h * 0.82};
+            if(kind === 'in-audio') return {x:n.x, y:n.y + h * 0.66};
+            if(kind === 'in-video') return {x:n.x, y:n.y + h * 0.34};
             return kind === 'out' ? {x:n.x + w, y:n.y + h / 2} : {x:n.x, y:n.y + h / 2};
         }
         function renderLinks(){
@@ -8377,9 +8483,10 @@
             connections.forEach(c => {
                 const outKind = c.fromPort === 'audio' ? 'out-audio' : 'out';
                 const toNode = nodes.find(n => n.id === c.to);
-                const inKind = (c.fromPort === 'audio' && toNode && toNode.type === 'seedance') ? 'in-audio' : 'in';
+                const inKind = c.fromPort === 'video' ? 'in-video' : (c.fromPort === 'audio' && toNode && toNode.type === 'seedance') ? 'in-audio' : 'in';
+                const linkClass = c.fromPort === 'audio' ? 'link audio-link' : c.fromPort === 'video' ? 'link video-link' : 'link';
                 const a = portPoint(c.from, outKind), b = portPoint(c.to, inKind);
-                linksEl.appendChild(pathEl(a.x, a.y, b.x, b.y, c.fromPort === 'audio' ? 'link audio-link' : 'link'));
+                linksEl.appendChild(pathEl(a.x, a.y, b.x, b.y, linkClass));
                 const btn = linkDeleteButton(c, a, b);
                 linkControlsEl.appendChild(btn);
                 linksEl.appendChild(linkHitEl(a.x, a.y, b.x, b.y, c.id));
