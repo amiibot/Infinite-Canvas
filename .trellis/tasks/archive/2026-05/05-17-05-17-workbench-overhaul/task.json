@@ -1,0 +1,31 @@
+{
+  "id": "05-17-workbench-overhaul",
+  "name": "05-17-workbench-overhaul",
+  "title": "Step3 资产弹窗工作台化重做",
+  "description": "",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "ami",
+  "assignee": "ami",
+  "createdAt": "2026-05-17",
+  "completedAt": "2026-05-17",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "05-17-char-workbench",
+    "05-17-scene-prop-modal",
+    "05-17-variant-ops",
+    "05-17-motion-placeholder"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}
