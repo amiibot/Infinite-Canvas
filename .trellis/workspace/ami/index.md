@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 13
+- **Total Sessions**: 14
 - **Last Active**: 2026-05-20
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~442 | Active |
+| `journal-1.md` | ~475 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 14 | 2026-05-20 | UI 可访问性修复 P1+P2（#10-#19,#24） | `57ca525` | `feat/remove-step5-step6` |
 | 13 | 2026-05-20 | UI合规修复 P0+P1（#1-#9） | `0346ff1` | `feat/remove-step5-step6` |
 | 12 | 2026-05-20 | Step4 多参考图分镜生成 | `fee4bae` | `feat/remove-step5-step6` |
 | 11 | 2026-05-19 | Seedance prompt token 解析 + 音频端口 + review 修复 | `d4387bd`, `33428be`, `a6d0835` | `feat/library-as-workspace-sibling` |
