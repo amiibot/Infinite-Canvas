@@ -157,7 +157,7 @@
                 <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
                     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                 </svg>
-                <input type="text" id="search-input" aria-label="搜索资产" placeholder="搜索资产..." data-zh-placeholder="搜索资产..." data-en-placeholder="Search assets...">
+                <input type="text" id="search-input" aria-label="搜索资产" placeholder="搜索资产…" data-zh-placeholder="搜索资产…" data-en-placeholder="Search assets…">
             </div>
         </div>
     </div>
@@ -325,7 +325,7 @@ window.addEventListener('message', e => {
             el.textContent = lang === 'en' ? (el.dataset.en || el.dataset.zh) : el.dataset.zh;
         });
         const si = document.getElementById('search-input');
-        if (si) si.placeholder = lang === 'en' ? 'Search assets...' : '搜索资产...';
+        if (si) si.placeholder = lang === 'en' ? 'Search assets…' : '搜索资产…';
     }
 });
 

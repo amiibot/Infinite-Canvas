@@ -422,7 +422,7 @@
 
                     <div id="loadingState" class="hidden flex flex-col items-center gap-5">
                         <div class="loading-box"></div>
-                        <p class="text-[10px] font-bold uppercase tracking-[0.4em] animate-pulse" data-i18n="studio.computingPixels">Computing pixels...
+                        <p class="text-[10px] font-bold uppercase tracking-[0.4em] animate-pulse" data-i18n="studio.computingPixels">Computing pixels…
                         </p>
                     </div>
 
@@ -717,7 +717,7 @@
                     const isUpscale = document.getElementById('upscaleToggle').checked;
 
                     debugStep = "Phase 1 Request";
-                    btn.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-yellow-400 fill-yellow-400 animate-pulse"></i><span class="tracking-[0.4em] text-[11px] uppercase">${isUpscale ? "Phase 1/2: Enhancing..." : "Processing..."}</span>`;
+                    btn.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-yellow-400 fill-yellow-400 animate-pulse"></i><span class="tracking-[0.4em] text-[11px] uppercase">${isUpscale ? "Phase 1/2: Enhancing…" : "Processing…"}</span>`;
                     lucide.createIcons();
 
                     const enhanceRes = await fetch('/api/generate', {
@@ -738,7 +738,7 @@
 
                     if (isUpscale) {
                         debugStep = "Phase 2 Preparation";
-                        btn.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-yellow-400 fill-yellow-400 animate-pulse"></i><span class="tracking-[0.4em] text-[11px] uppercase">Phase 2/2: Uploading...</span>`;
+                        btn.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-yellow-400 fill-yellow-400 animate-pulse"></i><span class="tracking-[0.4em] text-[11px] uppercase">Phase 2/2: Uploading…</span>`;
                         lucide.createIcons();
 
                         const imgUrl = enhanceData.images[0];
@@ -759,7 +759,7 @@
                         const uploadedInput = uploadData.files[0].comfy_name;
 
                         debugStep = "Phase 2 Execution";
-                        btn.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-yellow-400 fill-yellow-400 animate-pulse"></i><span class="tracking-[0.4em] text-[11px] uppercase">Phase 2/2: Upscaling...</span>`;
+                        btn.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-yellow-400 fill-yellow-400 animate-pulse"></i><span class="tracking-[0.4em] text-[11px] uppercase">Phase 2/2: Upscaling…</span>`;
                         lucide.createIcons();
                         const seed = Math.floor(Math.random() * 4294967295);
                         const upscaleRes = await fetch('/api/generate', {

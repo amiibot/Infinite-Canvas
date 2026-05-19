@@ -431,7 +431,7 @@
         .hub-port { height:30px; border-radius:999px; padding:0 10px; display:flex; align-items:center; gap:7px; background:#f8fafc; color:#475569; font-size:11px; font-weight:700; cursor:crosshair; }
         .hub-dot { width:10px; height:10px; border-radius:50%; background:#111827; box-shadow:0 0 0 2px #fff, 0 0 0 3px #cbd5e1; }
         .canvas-gate { position:absolute; inset:0; z-index:18; display:flex; align-items:center; justify-content:center; padding:32px; background:#f8fafc; background-image:radial-gradient(#d9e1ea 1px, transparent 1px); background-size:24px 24px; }
-        .output-lightbox { position:absolute; inset:0; z-index:86; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(248,250,252,.34); backdrop-filter:blur(18px) saturate(1.08); }
+        .output-lightbox { position:absolute; inset:0; z-index:86; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(248,250,252,.34); backdrop-filter:blur(18px) saturate(1.08); overscroll-behavior:contain; }
         .output-lightbox.open { display:flex; }
         .output-lightbox-shell { width:min(1280px, 96vw); max-height:98vh; display:flex; flex-direction:column; align-items:center; gap:10px; }
         .output-preview { position:relative; width:min(1280px, 96vw); height:min(960px, 88vh); border-radius:24px; background:rgba(255,255,255,.72); border:1px solid rgba(255,255,255,.64); box-shadow:0 30px 90px rgba(15,23,42,.22); overflow:hidden; cursor:grab; }
@@ -459,7 +459,7 @@
         .preview-text-btn { height:32px; border-radius:999px; padding:0 11px; display:flex; align-items:center; gap:6px; background:#111827; color:#fff; font-size:11px; font-weight:800; }
         .preview-text-btn.secondary { background:#f8fafc; color:#111827; border:1px solid #e2e8f0; }
         .preview-text-btn.copied { background:#10b981; color:#fff; border-color:#10b981; }
-        .log-modal { position:absolute; inset:0; z-index:76; display:none; align-items:center; justify-content:center; padding:28px; background:rgba(248,250,252,.42); backdrop-filter:blur(18px); }
+        .log-modal { position:absolute; inset:0; z-index:76; display:none; align-items:center; justify-content:center; padding:28px; background:rgba(248,250,252,.42); backdrop-filter:blur(18px); overscroll-behavior:contain; }
         .log-modal.open { display:flex; }
         .log-panel { width:min(860px, 94vw); max-height:86vh; display:flex; flex-direction:column; border-radius:22px; background:var(--card-solid); border:1px solid var(--line); box-shadow:0 30px 90px rgba(15,23,42,.22); overflow:hidden; }
         .log-head { height:58px; padding:0 16px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
@@ -486,7 +486,7 @@
         .log-thumbs img, .log-thumbs video { width:38px; height:38px; object-fit:cover; border-radius:8px; border:1px solid var(--line); background:#0f172a; cursor:pointer; }
         .model-modal { position:absolute; inset:0; z-index:70; display:none; align-items:center; justify-content:center; padding:28px; background:rgba(248,250,252,.42); backdrop-filter:blur(18px); }
         .model-modal.open { display:flex; }
-        .error-modal { position:absolute; inset:0; z-index:90; display:none; align-items:center; justify-content:center; padding:28px; background:rgba(248,250,252,.42); backdrop-filter:blur(18px); }
+        .error-modal { position:absolute; inset:0; z-index:90; display:none; align-items:center; justify-content:center; padding:28px; background:rgba(248,250,252,.42); backdrop-filter:blur(18px); overscroll-behavior:contain; }
         .error-modal.open { display:flex; }
         .error-panel { width:min(560px, 100%); max-height:min(520px, calc(100vh - 56px)); padding:18px; border-radius:20px; background:var(--card-solid); border:1px solid var(--line); box-shadow:0 22px 58px var(--shadow); display:flex; flex-direction:column; gap:14px; }
         .error-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
@@ -525,7 +525,7 @@
         .model-btn.secondary.danger { color:#dc2626; background:#fff5f5; border-color:#fecaca; }
         .model-btn.primary { color:#fff; background:#111827; }
         .api-key-link { width:fit-content; text-decoration:none; align-self:flex-end; }
-        .image-edit-modal { position:absolute; inset:0; z-index:80; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(248,250,252,.42); backdrop-filter:blur(18px); }
+        .image-edit-modal { position:absolute; inset:0; z-index:80; display:none; align-items:center; justify-content:center; padding:18px; background:rgba(248,250,252,.42); backdrop-filter:blur(18px); overscroll-behavior:contain; }
         .image-edit-modal.open { display:flex; }
         .image-edit-panel { width:min(1480px, calc(100vw - 36px)); height:min(980px, calc(100vh - 36px)); border-radius:22px; background:#fff; border:1px solid #e8edf3; box-shadow:0 30px 90px rgba(15,23,42,.22); padding:14px; display:flex; flex-direction:column; gap:10px; }
         .image-edit-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
@@ -827,7 +827,7 @@
                         <button id="gateCreateBtn" class="primary-btn" type="button"><i data-lucide="plus" class="w-4 h-4"></i><span data-i18n="canvas.newCanvas">新建画布</span></button>
                     </div>
                 </div>
-                <div id="gateStatus" class="gate-status" data-i18n="canvas.loadingCanvases">正在加载画布列表...</div>
+                <div id="gateStatus" class="gate-status" data-i18n="canvas.loadingCanvases">正在加载画布列表…</div>
                 <div class="gate-create-row">
                     <input id="gateTitleInput" class="gate-name-input" type="text" maxlength="80" placeholder="新画布名称（可留空使用默认）" aria-label="画布标题" data-i18n-placeholder="canvas.newCanvasPlaceholder">
                     <button id="gateConfirmBtn" class="create-confirm" type="button" title="确定" aria-label="确定" data-i18n-title="common.confirm"><i data-lucide="check" class="w-4 h-4"></i></button>
@@ -838,7 +838,7 @@
             </div>
         </div>
 
-        <div id="board" class="board editor-only">
+        <div id="board" class="board editor-only" style="touch-action:manipulation">
             <div id="dropOverlay" class="drop-overlay" data-i18n="canvas.dropImage">拖放图片到画布</div>
             <div id="selectionBox" class="selection-box"></div>
             <div id="selectionHub" class="selection-hub"></div>
@@ -994,7 +994,7 @@
                 </div>
                 <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
                     <select id="assetPickerProject" aria-label="选择项目" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:13px">
-                        <option value="">加载中...</option>
+                        <option value="">加载中…</option>
                     </select>
                 </div>
                 <div id="assetPickerGrid" style="flex:1;overflow-y:auto;padding:12px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:10px;min-height:120px">
@@ -1627,7 +1627,7 @@
         function scheduleSave(){
             if(!canvas || applyingRemoteCanvas) return;
             localCanvasDirty = true;
-            setStatus('Saving...');
+            setStatus('Saving…');
             clearTimeout(saveTimer);
             if(savingCanvasNow){
                 saveCanvasAgain = true;
@@ -1689,7 +1689,7 @@
                     if(localCanvasDirty || saveCanvasAgain){
                         lastCanvasUpdatedAt = Number(data.detail?.updated_at || data.updated_at || remote?.updated_at || lastCanvasUpdatedAt || 0);
                         saveCanvasAgain = true;
-                        setStatus('Saving...');
+                        setStatus('Saving…');
                         return;
                     }
                     if(remote) applyRemoteCanvasData(remote);
@@ -1926,7 +1926,7 @@
             const title = customTitle || `${tr('canvas.newCanvas')} ${new Date().toLocaleTimeString(window.StudioI18n?.lang() === 'en' ? 'en-US' : 'zh-CN', {hour:'2-digit', minute:'2-digit'})}`;
             trashMode = false;
             refreshGateViewControls();
-            setStatus('Creating...');
+            setStatus('Creating…');
             try {
                 const res = await fetch('/api/canvases', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({title})});
                 if(!res.ok) throw new Error(tr('canvas.createFailed'));
@@ -2054,7 +2054,7 @@
             }
         }
         async function openCanvas(id){
-            setStatus('Opening...');
+            setStatus('Opening…');
             try {
                 const res = await fetch(`/api/canvases/${id}`);
                 if(!res.ok) throw new Error(tr('canvas.openFailed'));
@@ -2200,7 +2200,7 @@
             localCanvasDirty = false;
             clearTimeout(remoteSyncTimer);
             remoteSyncTimer = setTimeout(syncRemoteCanvasNow, savingCanvasNow ? 700 : 120);
-            setStatus('Syncing...');
+            setStatus('Syncing…');
         }
         async function returnToCanvasManager(){
             clearTimeout(saveTimer);
@@ -2244,7 +2244,7 @@
         async function deleteCanvas(id, event){
             event?.preventDefault();
             event?.stopPropagation();
-            setStatus('Moving to trash...');
+            setStatus('Moving to trash…');
             try {
                 const res = await fetch(`/api/canvases/${id}`, {method:'DELETE'});
                 if(!res.ok) throw new Error(tr('canvas.moveToTrashFailed'));
@@ -2270,7 +2270,7 @@
         async function restoreCanvas(id, event){
             event?.preventDefault();
             event?.stopPropagation();
-            setStatus('Restoring...');
+            setStatus('Restoring…');
             try {
                 const res = await fetch(`/api/canvases/${id}/restore`, {method:'POST'});
                 if(!res.ok) throw new Error(tr('canvas.restoreFailed'));
@@ -2287,7 +2287,7 @@
         async function purgeCanvas(id, event){
             event?.preventDefault();
             event?.stopPropagation();
-            setStatus('Deleting...');
+            setStatus('Deleting…');
             try {
                 const res = await fetch(`/api/canvases/${id}/purge`, {method:'DELETE'});
                 if(!res.ok) throw new Error(tr('canvas.purgeFailed'));
@@ -2382,8 +2382,8 @@
             modal.classList.add('open');
             const sel = document.getElementById('assetPickerProject');
             const grid = document.getElementById('assetPickerGrid');
-            sel.innerHTML = '<option value="">加载中...</option>';
-            grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:24px;font-size:13px">加载中...</div>';
+            sel.innerHTML = '<option value="">加载中…</option>';
+            grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:24px;font-size:13px">加载中…</div>';
             fetch('/api/comic/projects').then(r=>r.json()).then(projects => {
                 _assetPickerCache = projects;
                 sel.innerHTML = '<option value="">-- 选择项目 --</option>' + projects.map(p => `<option value="${p.id}">${escapeHtml(p.title || p.id)}</option>`).join('');
@@ -2394,7 +2394,7 @@
             sel.onchange = () => {
                 const pid = sel.value;
                 if(!pid){ grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:24px;font-size:13px">请选择项目</div>'; return; }
-                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:24px;font-size:13px">加载中...</div>';
+                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-secondary);padding:24px;font-size:13px">加载中…</div>';
                 fetch(`/api/comic/projects/${pid}`).then(r=>r.json()).then(proj => {
                     const items = [];
                     (proj.characters||[]).forEach(c => {
@@ -2415,7 +2415,7 @@
                     }
                     grid.innerHTML = items.map(it => `<div class="asset-pick-item" data-asset='${escapeAttr(JSON.stringify(it))}' style="cursor:pointer;border-radius:8px;overflow:hidden;border:2px solid transparent;transition:border-color .15s">
                         <div style="aspect-ratio:1;background:var(--bg-secondary);display:flex;align-items:center;justify-content:center;overflow:hidden">
-                            ${it.url ? `<img src="${escapeAttr(it.url)}" style="width:100%;height:100%;object-fit:cover" draggable="false">` : `<span style="font-size:24px;opacity:.4">📦</span>`}
+                            ${it.url ? `<img src="${escapeAttr(it.url)}" alt="" style="width:100%;height:100%;object-fit:cover" draggable="false" loading="lazy">` : `<span style="font-size:24px;opacity:.4">📦</span>`}
                         </div>
                         <div style="padding:4px 6px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-primary)">${escapeHtml(it.name||'未命名')}</div>
                         <div style="padding:0 6px 4px;font-size:10px;color:var(--text-secondary)">${escapeHtml(it.kind)}</div>
@@ -2645,17 +2645,17 @@
                     <div class="gen-settings">
                         ${isCustomMs ? `
                         <div class="gen-settings-row">
-                            <select class="select-lite ms-custom-model-select">${modelscopeImageModelOptions(node.msCustomModel)}</select>
+                            <select class="select-lite ms-custom-model-select" aria-label="模型">${modelscopeImageModelOptions(node.msCustomModel)}</select>
                         </div>
                         ` : ''}
                         <div class="gen-settings-row">
-                            <select class="select-lite resolution compact-select" data-field="msResolution">
+                            <select class="select-lite resolution compact-select" data-field="msResolution" aria-label="分辨率">
                                 <option value="1k">1K</option>
                                 <option value="2k">2K</option>
                                 <option value="4k">4K</option>
                             <option value="custom">${tr('canvas.custom')}</option>
                         </select>
-                        <select class="select-lite ratio compact-select" data-field="msRatio">
+                        <select class="select-lite ratio compact-select" data-field="msRatio" aria-label="比例">
                             <option value="square">1:1</option>
                             <option value="portrait">2:3</option>
                             <option value="landscape">3:2</option>
@@ -2705,7 +2705,7 @@
                         <div class="gen-settings-row">
                             <label class="field" style="flex:1">
                                 <div class="setting-title">LoRA</div>
-                                <select class="select-lite ms-lora-select">${modelscopeLoraOptions(msLoras, String(selectedMsLora?.id || '').trim())}</select>
+                                <select class="select-lite ms-lora-select" aria-label="LoRA">${modelscopeLoraOptions(msLoras, String(selectedMsLora?.id || '').trim())}</select>
                             </label>
                         </div>
                         <div class="gen-settings-row">
@@ -4992,8 +4992,8 @@
             node.showSystem = Boolean(node.showSystem);
             wrap.innerHTML = `
                 <div class="llm-row">
-                    <select class="select-lite llm-provider-select" style="flex:1">${chatProviderOptions(llmProv)}</select>
-                    <select class="select-lite llm-model">${modelOpts}</select>
+                    <select class="select-lite llm-provider-select" style="flex:1" aria-label="LLM提供商">${chatProviderOptions(llmProv)}</select>
+                    <select class="select-lite llm-model" aria-label="LLM模型">${modelOpts}</select>
                     <div class="llm-mode"><button data-mode="node">${tr('canvas.nodeMode')}</button><button data-mode="chat">${tr('canvas.chatMode')}</button></div>
                     <button class="llm-sys-toggle ${node.showSystem ? 'active' : ''}" type="button">System</button>
                 </div>
@@ -5262,17 +5262,17 @@
                 <div class="input-list"></div>
                 <div class="gen-settings">
                     <div class="gen-settings-row">
-                        <select class="select-lite provider-select">${providerOptions(node.apiProvider)}</select>
-                        <select class="select-lite model-select">${imageModelOptions(node.model, node.apiProvider)}</select>
+                        <select class="select-lite provider-select" aria-label="提供商">${providerOptions(node.apiProvider)}</select>
+                        <select class="select-lite model-select" aria-label="模型">${imageModelOptions(node.model, node.apiProvider)}</select>
                     </div>
                     <div class="gen-settings-row">
-                        <select class="select-lite resolution compact-select" data-field="resolution">
+                        <select class="select-lite resolution compact-select" data-field="resolution" aria-label="分辨率">
                             <option value="1k">1K</option>
                             <option value="2k">2K</option>
                             <option value="4k">4K</option>
                             <option value="custom">${tr('canvas.custom')}</option>
                         </select>
-                        <select class="select-lite ratio compact-select" data-field="ratio">
+                        <select class="select-lite ratio compact-select" data-field="ratio" aria-label="比例">
                             <option value="square">1:1</option>
                             <option value="portrait">2:3</option>
                             <option value="landscape">3:2</option>
@@ -5495,8 +5495,8 @@
                 <div class="input-list video-img-list"></div>
                 <div class="gen-settings">
                     <div class="gen-settings-row">
-                        <select class="select-lite video-provider" style="flex:1">${videoProviderOptions(node.apiProvider)}</select>
-                        <select class="select-lite video-model" style="flex:2">${videoModelOptions(node.model, node.apiProvider)}</select>
+                        <select class="select-lite video-provider" style="flex:1" aria-label="视频提供商">${videoProviderOptions(node.apiProvider)}</select>
+                        <select class="select-lite video-model" style="flex:2" aria-label="视频模型">${videoModelOptions(node.model, node.apiProvider)}</select>
                     </div>
                     <div class="gen-settings-row">
                         <label class="field" style="flex:1">
@@ -5505,7 +5505,7 @@
                         </label>
                         <label class="field" style="flex:1">
                             <div class="setting-title">${tr('canvas.videoAspect')}</div>
-                            <select class="select-lite video-aspect compact-select">
+                            <select class="select-lite video-aspect compact-select" aria-label="视频比例">
                                 <option value="16:9">16:9</option>
                                 <option value="9:16">9:16</option>
                                 <option value="1:1">1:1</option>
@@ -5519,7 +5519,7 @@
                         </label>
                         <label class="field" style="flex:1">
                             <div class="setting-title">${tr('canvas.videoResolution')}</div>
-                            <select class="select-lite video-resolution compact-select">
+                            <select class="select-lite video-resolution compact-select" aria-label="视频分辨率">
                                 <option value="">Auto</option>
                                 <option value="480p">480p</option>
                                 <option value="720p">720p</option>
@@ -5717,13 +5717,13 @@
                     <div class="gen-settings-row" style="gap:6px;flex-wrap:nowrap">
                         <label class="field" style="flex:none">
                             <div class="setting-title">模式</div>
-                            <select class="select-lite sdn-mode-select" style="min-width:0;width:auto;padding:0 8px">
+                            <select class="select-lite sdn-mode-select" style="min-width:0;width:auto;padding:0 8px" aria-label="Seedance模式">
                                 ${MODES.map(m => `<option value="${m.id}" ${m.id===curMode?'selected':''}>${m.label}</option>`).join('')}
                             </select>
                         </label>
                         <label class="field" style="flex:none">
                             <div class="setting-title">比例</div>
-                            <select class="select-lite sdn-aspect" style="min-width:0;width:auto;padding:0 8px">
+                            <select class="select-lite sdn-aspect" style="min-width:0;width:auto;padding:0 8px" aria-label="Seedance比例">
                                 <option value="adaptive" ${(!node.aspectRatio||node.aspectRatio==='adaptive')?'selected':''}>自适应</option>
                                 <option value="16:9" ${node.aspectRatio==='16:9'?'selected':''}>16:9</option>
                                 <option value="9:16" ${node.aspectRatio==='9:16'?'selected':''}>9:16</option>
@@ -5735,7 +5735,7 @@
                         </label>
                         <label class="field" style="flex:none">
                             <div class="setting-title">分辨率</div>
-                            <select class="select-lite sdn-resolution" style="min-width:0;width:72px;padding:0 8px">
+                            <select class="select-lite sdn-resolution" style="min-width:0;width:72px;padding:0 8px" aria-label="Seedance分辨率">
                                 <option value="480p" ${node.resolution==='480p'?'selected':''}>480p</option>
                                 <option value="720p" ${(!node.resolution||node.resolution==='720p')?'selected':''}>720p</option>
                                 ${(node.model||'').indexOf('fast')===-1?`<option value="1080p" ${node.resolution==='1080p'?'selected':''}>1080p</option>`:''}
@@ -5743,7 +5743,7 @@
                         </label>
                         <label class="field" style="flex:none">
                             <div class="setting-title">模型</div>
-                            <select class="select-lite sdn-model" style="min-width:0;width:auto;padding:0 8px">
+                            <select class="select-lite sdn-model" style="min-width:0;width:auto;padding:0 8px" aria-label="Seedance模型">
                                 <option value="doubao-seedance-2-0-260128" ${(node.model||'doubao-seedance-2-0-260128')==='doubao-seedance-2-0-260128'?'selected':''}>Seedance-2.0</option>
                                 <option value="doubao-seedance-2-0-fast-260128" ${node.model==='doubao-seedance-2-0-fast-260128'?'selected':''}>Seedance-2.0-Fast</option>
                             </select>
@@ -6035,7 +6035,7 @@
                     </div>
                     <div class="gen-settings-row">
                         <button type="button" class="setting-check ${node.enhanceUpscale ? 'active' : ''}" data-toggle-field="enhanceUpscale"><span class="check-dot"></span>${tr('studio.superResolution')}</button>
-                        <select class="select-lite ${node.enhanceUpscale ? '' : 'opacity-40 cursor-not-allowed'}" data-field="enhanceUpscaleRes" ${node.enhanceUpscale ? '' : 'disabled'}><option value="2048">2X (2048)</option><option value="4096">4X (4096)</option></select>
+                        <select class="select-lite ${node.enhanceUpscale ? '' : 'opacity-40 cursor-not-allowed'}" data-field="enhanceUpscaleRes" aria-label="增强放大倍数" ${node.enhanceUpscale ? '' : 'disabled'}><option value="2048">2X (2048)</option><option value="4096">4X (4096)</option></select>
                     </div>
                 `;
                 container.querySelector('[data-field="enhanceUpscaleRes"]').value = String(node.enhanceUpscaleRes || 2048);
@@ -6043,7 +6043,7 @@
                 container.innerHTML = `
                     <div class="gen-settings-row">
                         <button type="button" class="setting-check ${node.editUpscale ? 'active' : ''}" data-toggle-field="editUpscale"><span class="check-dot"></span>${tr('studio.superResolution')}</button>
-                        <select class="select-lite ${node.editUpscale ? '' : 'opacity-40 cursor-not-allowed'}" data-field="editUpscaleRes" ${node.editUpscale ? '' : 'disabled'}><option value="2048">2X (2048)</option><option value="4096">4X (4096)</option></select>
+                        <select class="select-lite ${node.editUpscale ? '' : 'opacity-40 cursor-not-allowed'}" data-field="editUpscaleRes" aria-label="编辑放大倍数" ${node.editUpscale ? '' : 'disabled'}><option value="2048">2X (2048)</option><option value="4096">4X (4096)</option></select>
                     </div>
                 `;
                 container.querySelector('[data-field="editUpscaleRes"]').value = String(node.editUpscaleRes || 2048);
@@ -6055,7 +6055,7 @@
                 const settingFields = fields.filter(f => comfyFieldKind(f) === 'setting');
                 container.innerHTML = `
                     <div class="gen-settings-row">
-                        <select class="select-lite comfy-workflow-select" data-field="comfyWorkflow" style="width:100%">${comfyWorkflowOptions(selected)}</select>
+                        <select class="select-lite comfy-workflow-select" data-field="comfyWorkflow" style="width:100%" aria-label="ComfyUI工作流">${comfyWorkflowOptions(selected)}</select>
                     </div>
                     ${!selected ? `<div class="text-[11px] text-slate-400">${tr('canvas.comfyNoWorkflow')}</div>` : (!data ? `<div class="text-[11px] text-slate-400">${tr('canvas.comfyLoadingWorkflow')}</div>` : '')}
                     ${data ? settingFields.map(f => renderComfyCustomField(node, f)).join('') || `<div class="text-[11px] text-slate-400">${tr('canvas.comfyNoExtraParams')}</div>` : ''}
@@ -7444,7 +7444,7 @@
                 const thumbs = (log.outputs || []).slice(0, 8).map(url => {
                     const safe = escapeAttr(url);
                     if(isMissingAssetUrl(url)) return `<div class="missing-asset compact" data-url="${safe}"><i data-lucide="image-off" class="w-4 h-4"></i></div>`;
-                    return isVideoUrl(url) ? `<video src="${safe}" data-url="${safe}" muted playsinline></video>` : `<img src="${safe}" data-url="${safe}" alt="output">`;
+                    return isVideoUrl(url) ? `<video src="${safe}" data-url="${safe}" muted playsinline></video>` : `<img src="${safe}" data-url="${safe}" alt="output" loading="lazy">`;
                 }).join('');
                 const date = new Date(log.createdAt || Date.now()).toLocaleString(window.StudioI18n?.lang() === 'en' ? 'en-US' : 'zh-CN');
                 const req = log.request || {};
@@ -7637,7 +7637,7 @@
             if(isVideoUrl(url)){
                 return `<div class="output-img-wrap" data-output-url="${safe}"><video src="${safe}" data-url="${safe}" preload="metadata" muted playsinline></video>${timePill}<div class="output-video-badge"><i data-lucide="play" class="w-3 h-3"></i>VIDEO</div><button class="output-del" title="${tr('common.delete')}">×</button></div>`;
             }
-            return `<div class="output-img-wrap" data-output-url="${safe}"><img src="${safe}" data-url="${safe}" alt="generated output">${timePill}<button class="output-del" title="${tr('common.delete')}">×</button></div>`;
+            return `<div class="output-img-wrap" data-output-url="${safe}"><img src="${safe}" data-url="${safe}" alt="generated output" loading="lazy">${timePill}<button class="output-del" title="${tr('common.delete')}">×</button></div>`;
         }
         function outputImageName(url){
             const clean = (url || '').split('?')[0];

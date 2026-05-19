@@ -89,7 +89,7 @@
                         <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
                         <span class="text-[10px] font-black uppercase tracking-widest">Prompt</span>
                     </div>
-                    <textarea id="promptInput" rows="5" class="nano-input w-full p-6 rounded-3xl text-sm outline-none resize-none placeholder-gray-300" placeholder="输入想生成或编辑的画面..." aria-label="提示词" data-i18n-placeholder="online.promptPlaceholder"></textarea>
+                    <textarea id="promptInput" rows="5" class="nano-input w-full p-6 rounded-3xl text-sm outline-none resize-none placeholder-gray-300" placeholder="输入想生成或编辑的画面…" aria-label="提示词" data-i18n-placeholder="online.promptPlaceholder"></textarea>
                 </section>
 
                 <section class="space-y-4">
@@ -101,17 +101,17 @@
                         <div id="drop-zone-1" onclick="document.getElementById('file1').click()" class="upload-item group aspect-square rounded-2xl flex flex-col items-center justify-center cursor-pointer">
                             <input type="file" id="file1" accept="image/*" class="hidden" onchange="handleFile(this.files[0],1)">
                             <i data-lucide="plus" class="w-5 h-5 text-gray-300 group-hover:text-black"></i><span class="text-[9px] mt-2 font-bold text-gray-400 uppercase">Main</span>
-                            <img id="prev1" class="preview-img hidden"><button id="del1" onclick="clearSlot(1,event)" class="hidden absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full shadow-sm z-10" aria-label="删除">×</button>
+                            <img id="prev1" alt="" class="preview-img hidden"><button id="del1" onclick="clearSlot(1,event)" class="hidden absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full shadow-sm z-10" aria-label="删除">×</button>
                         </div>
                         <div id="drop-zone-2" onclick="document.getElementById('file2').click()" class="upload-item group aspect-square rounded-2xl flex flex-col items-center justify-center cursor-pointer">
                             <input type="file" id="file2" accept="image/*" class="hidden" onchange="handleFile(this.files[0],2)">
                             <i data-lucide="plus" class="w-5 h-5 text-gray-300 group-hover:text-black"></i><span class="text-[9px] mt-2 font-bold text-gray-400 uppercase">Aux A</span>
-                            <img id="prev2" class="preview-img hidden"><button id="del2" onclick="clearSlot(2,event)" class="hidden absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full shadow-sm z-10" aria-label="删除">×</button>
+                            <img id="prev2" alt="" class="preview-img hidden"><button id="del2" onclick="clearSlot(2,event)" class="hidden absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full shadow-sm z-10" aria-label="删除">×</button>
                         </div>
                         <div id="drop-zone-3" onclick="document.getElementById('file3').click()" class="upload-item group aspect-square rounded-2xl flex flex-col items-center justify-center cursor-pointer">
                             <input type="file" id="file3" accept="image/*" class="hidden" onchange="handleFile(this.files[0],3)">
                             <i data-lucide="plus" class="w-5 h-5 text-gray-300 group-hover:text-black"></i><span class="text-[9px] mt-2 font-bold text-gray-400 uppercase">Aux B</span>
-                            <img id="prev3" class="preview-img hidden"><button id="del3" onclick="clearSlot(3,event)" class="hidden absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full shadow-sm z-10" aria-label="删除">×</button>
+                            <img id="prev3" alt="" class="preview-img hidden"><button id="del3" onclick="clearSlot(3,event)" class="hidden absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full shadow-sm z-10" aria-label="删除">×</button>
                         </div>
                     </div>
                 </section>
@@ -177,7 +177,7 @@
                 <div id="resultBox" class="result-frame min-h-[500px] lg:h-full flex items-center justify-center relative overflow-hidden">
                     <div id="placeholder" class="text-center space-y-4 opacity-20"><i data-lucide="layout" class="w-12 h-12 mx-auto stroke-[1px]"></i><p class="text-[10px] font-black tracking-[0.5em] uppercase" data-i18n="online.canvasReady">Canvas Ready</p></div>
                     <div id="loader" class="hidden text-center space-y-4"><div class="w-8 h-8 border-2 border-black border-t-transparent rounded-full animate-spin mx-auto"></div><p class="text-[10px] font-black tracking-[0.5em] uppercase" data-i18n="online.generating">Generating</p></div>
-                    <img id="outputImg" class="hidden w-full h-full object-contain p-8 cursor-zoom-in" onclick="zoomImage()">
+                    <img id="outputImg" alt="output" class="hidden w-full h-full object-contain p-8 cursor-zoom-in" onclick="zoomImage()">
                     <a id="downloadBtn" href="#" download class="hidden absolute top-8 right-8 w-12 h-12 bg-white/90 shadow-2xl rounded-2xl flex items-center justify-center hover:bg-black hover:text-white" aria-label="下载"><i data-lucide="download" class="w-4 h-4"></i></a>
                 </div>
             </div>
@@ -512,7 +512,7 @@
             card.dataset.historyTs = data.timestamp;
             card.className = 'masonry-item group relative cursor-zoom-in';
             card.onclick = () => { if(document.body.classList.contains('history-bulk-selecting')) return; openLightbox(data); };
-            card.innerHTML = `<img src="${data.images[0]}" class="w-full h-full object-cover block group-hover:scale-105 transition-transform duration-1000" loading="lazy">
+            card.innerHTML = `<img src="${data.images[0]}" alt="" class="w-full h-full object-cover block group-hover:scale-105 transition-transform duration-1000" loading="lazy">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 p-6 flex flex-col justify-end"><p class="text-white text-[10px] font-medium line-clamp-2 uppercase tracking-wider">${data.prompt || tr('online.onlineImageFallback')}</p></div>`;
             isNew ? document.getElementById('masonry').prepend(card) : document.getElementById('masonry').appendChild(card);
             lucide.createIcons();
@@ -537,7 +537,7 @@
             currentLightboxData = data;
             const img = document.getElementById('lightboxImg');
             const res = document.getElementById('lightboxRes');
-            res.textContent = '...';
+            res.textContent = '…';
             ensureLightboxPreview();
             if(lightboxPreview) lightboxPreview.reset();
             img.onload = () => { res.textContent = img.naturalWidth && img.naturalHeight ? `${img.naturalWidth} x ${img.naturalHeight}` : (data.params?.size || '--'); };

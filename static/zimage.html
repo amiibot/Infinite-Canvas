@@ -195,7 +195,7 @@
                     </div>
                     <textarea id="prompt" rows="2"
                         class="w-full bg-transparent text-2xl font-medium outline-none placeholder:text-gray-200 text-black resize-none leading-relaxed"
-                        placeholder="Describe your vision..." aria-label="提示词" data-i18n-placeholder="studio.describeVision"></textarea>
+                        placeholder="Describe your vision…" aria-label="提示词" data-i18n-placeholder="studio.describeVision"></textarea>
                 </div>
 
                 <div class="flex flex-col md:flex-row items-center justify-between p-4 px-6 gap-6">
@@ -486,7 +486,7 @@
             card.onclick = () => { if(document.body.classList.contains('history-bulk-selecting')) return; openLightbox(data.images[0], data.prompt); };
             card.innerHTML = `
             <img src="${data.images[0]}" class="w-full h-full object-cover" loading="lazy">
-            ${data.type === 'cloud' ? '<div class="absolute top-3 left-3 z-10"><img src="/static/modelscope.gif" class="h-4 w-auto object-contain bg-white/90 rounded-full p-0.5 shadow-sm"></div>' : ''}
+            ${data.type === 'cloud' ? '<div class="absolute top-3 left-3 z-10"><img src="/static/modelscope.gif" width="88" height="16" class="h-4 w-auto object-contain bg-white/90 rounded-full p-0.5 shadow-sm"></div>' : ''}
         `;
             isNew ? masonry.prepend(card) : masonry.appendChild(card);
             lucide.createIcons();
@@ -509,7 +509,7 @@
                     const res = await fetch('/api/history?type=zimage');
                     allHistory = await res.json();
                 } else {
-                    trigger.innerText = "Loading...";
+                    trigger.innerText = "Loading…";
                     await new Promise(r => setTimeout(r, 400));
                 }
 
@@ -590,7 +590,7 @@
         function openLightbox(url, prompt) {
             const img = document.getElementById('lightboxImg');
             const resDisplay = document.getElementById('lightboxRes');
-            resDisplay.innerText = "...";
+            resDisplay.innerText = "…";
             ensureLightboxPreview();
             if(lightboxPreview) lightboxPreview.reset();
             img.src = url;

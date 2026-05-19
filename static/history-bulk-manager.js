@@ -214,7 +214,7 @@
                 const box = document.createElement('div');
                 box.className = 'history-select-box';
                 document.body.appendChild(box);
-                drag = {sx:down.sx, sy:down.sy, box};
+                drag = {sx:down.sx, sy:down.sy, box, cardRects: selectableCards().map(card => ({card, rect: card.getBoundingClientRect()}))};
             }
             if(!drag) return;
             e.preventDefault();
@@ -225,8 +225,7 @@
             const h = Math.abs(e.clientY - drag.sy);
             Object.assign(drag.box.style, {left:`${x}px`, top:`${y}px`, width:`${w}px`, height:`${h}px`});
             const r = {left:x, top:y, right:x+w, bottom:y+h};
-            selectableCards().forEach(card => {
-                const cr = card.getBoundingClientRect();
+            drag.cardRects.forEach(({card, rect: cr}) => {
                 const hit = cr.left < r.right && cr.right > r.left && cr.top < r.bottom && cr.bottom > r.top;
                 if(hit) selected.add(cardTs(card));
             });

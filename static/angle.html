@@ -262,7 +262,7 @@
                             <p class="text-[11px] font-bold uppercase tracking-tight" data-i18n="studio.dropImage">Drop image here</p>
                         </div>
 
-                        <img id="previewImg" class="hidden absolute inset-0 w-full h-full object-cover">
+                        <img id="previewImg" alt="" class="hidden absolute inset-0 w-full h-full object-cover">
 
                         <div id="changeOverlay"
                             class="hidden absolute inset-0 bg-black/10 backdrop-blur-sm items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
@@ -408,11 +408,11 @@
 
                         <div id="loadingState" class="hidden flex flex-col items-center gap-5 w-full max-w-[80%]">
                             <div class="loading-box"></div>
-                            <p class="text-[10px] font-bold uppercase tracking-[0.4em] animate-pulse" data-i18n="studio.processing">Processing...</p>
+                            <p class="text-[10px] font-bold uppercase tracking-[0.4em] animate-pulse" data-i18n="studio.processing">Processing…</p>
                             <!-- Progress Bar -->
                             <div id="cloud-progress-container" class="hidden w-full mt-4">
                                 <div class="flex justify-between text-[9px] font-bold text-gray-400 mb-1 uppercase tracking-widest">
-                                    <span id="cloud-status-text">Pending...</span>
+                                    <span id="cloud-status-text">Pending…</span>
                                     <span id="cloud-percent">0%</span>
                                 </div>
                                 <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
@@ -436,7 +436,7 @@
                             </button>
                         </div>
 
-                        <img id="outputImg"
+                        <img id="outputImg" alt="output"
                             class="hidden w-full h-full object-contain p-8 cursor-zoom-in transition-transform duration-700 hover:scale-[1.02]"
                             onclick="zoomImage()">
 
@@ -513,8 +513,8 @@
             if (data.status) {
                 // Simplify status text (remove internal details if needed)
                 let displayStatus = data.status;
-                if (displayStatus.includes("PENDING")) displayStatus = "Queueing...";
-                if (displayStatus.includes("RUNNING")) displayStatus = "Generating...";
+                if (displayStatus.includes("PENDING")) displayStatus = "Queueing…";
+                if (displayStatus.includes("RUNNING")) displayStatus = "Generating…";
                 statusText.innerText = displayStatus;
             }
 
@@ -998,7 +998,7 @@
                          };
                          
                          // Update UI to show we are still waiting
-                         updateCloudProgress({status: "Resuming...", progress: 0, total: 150});
+                         updateCloudProgress({status: "Resuming…", progress: 0, total: 150});
                          
                          response = await fetch('/api/angle/poll_status', {
                             method: 'POST',
@@ -1037,7 +1037,7 @@
 
         async function handleGenerate() {
             if (!uploadedPath && currentEngine === 'local') {
-                // ... existing local check ...
+                // … existing local check …
                 const dropzone = document.getElementById('dropzone');
                 dropzone.style.transition = "0.2s";
                 dropzone.style.borderColor = "#ef4444";
@@ -1173,12 +1173,12 @@
             const isCloud = data.is_cloud || (imgUrl && imgUrl.includes('cloud_angle'));
             const badgeHtml = isCloud ? `
                 <div class="absolute top-3 left-3 z-10">
-                    <img src="/static/modelscope.gif" class="h-4 w-auto object-contain bg-white/90 rounded-full p-0.5 shadow-sm">
+                    <img src="/static/modelscope.gif" width="88" height="16" alt="ModelScope" class="h-4 w-auto object-contain bg-white/90 rounded-full p-0.5 shadow-sm">
                 </div>
             ` : '';
 
             card.innerHTML = `
-                <img src="${imgUrl}" class="w-full h-full object-cover block transform group-hover:scale-105 transition-transform duration-[1.5s]">
+                <img src="${imgUrl}" alt="" class="w-full h-full object-cover block transform group-hover:scale-105 transition-transform duration-[1.5s]" loading="lazy">
                 ${badgeHtml}
                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-6 flex flex-col justify-end pointer-events-none">
                     <p class="text-white text-[10px] font-bold uppercase tracking-widest line-clamp-2">${data.prompt || "Angle Control"}</p>

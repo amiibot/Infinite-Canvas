@@ -166,7 +166,7 @@
     <div class="topbar">
         <button class="back-btn" id="backBtn" title="返回工作区">←</button>
         <div class="title-area">
-            <h1 class="series-title" id="seriesTitle">加载中...</h1>
+            <h1 class="series-title" id="seriesTitle">加载中…</h1>
             <p class="series-desc" id="seriesDesc"></p>
         </div>
         <button class="action-btn primary" id="newEpisodeBtn">+ 新建剧集</button>
@@ -304,10 +304,10 @@
         const chars = s.characters || [];
         const scenes = s.scenes || [];
         document.getElementById('charList').innerHTML = chars.length
-            ? chars.map(c => `<span class="asset-chip">${c.image_url ? `<img src="${esc(c.image_url)}" alt="">` : ''}<span>${esc(c.name)}</span><button data-del-char="${esc(c.id)}">×</button></span>`).join('')
+            ? chars.map(c => `<span class="asset-chip">${c.image_url ? `<img src="${esc(c.image_url)}" alt="" loading="lazy">` : ''}<span>${esc(c.name)}</span><button data-del-char="${esc(c.id)}">×</button></span>`).join('')
             : `<span style="font-size:12px;color:var(--muted)">${tr('暂无角色','No characters')}</span>`;
         document.getElementById('sceneList').innerHTML = scenes.length
-            ? scenes.map(sc => `<span class="asset-chip">${sc.image_url ? `<img src="${esc(sc.image_url)}" alt="">` : ''}<span>${esc(sc.name)}</span><button data-del-scene="${esc(sc.id)}">×</button></span>`).join('')
+            ? scenes.map(sc => `<span class="asset-chip">${sc.image_url ? `<img src="${esc(sc.image_url)}" alt="" loading="lazy">` : ''}<span>${esc(sc.name)}</span><button data-del-scene="${esc(sc.id)}">×</button></span>`).join('')
             : `<span style="font-size:12px;color:var(--muted)">${tr('暂无场景','No scenes')}</span>`;
     }
 

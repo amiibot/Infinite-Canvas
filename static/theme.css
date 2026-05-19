@@ -8,6 +8,7 @@ body.studio-theme-dark {
 
 html,
 body {
+    color-scheme: light;
     overscroll-behavior: auto;
 }
 
