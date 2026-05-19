@@ -2635,12 +2635,19 @@ async def canvas_video(payload: CanvasVideoRequest):
                     if model != "veo3.1-lite":
                         body["official_fallback"] = False
                 else:
+                    sd_model = selected_model(payload.model, "doubao-seedance-2.0")
+                    is_seedance = "seedance" in sd_model.lower()
+                    sd_resolution = payload.resolution or "720p"
+                    if is_seedance:
+                        if "fast" in sd_model and sd_resolution == "1080p":
+                            sd_resolution = "720p"
+                    sd_duration = max(4, min(15, payload.duration or 5)) if is_seedance else (payload.duration or 5)
                     body = {
                         "prompt": payload.prompt,
-                        "model": selected_model(payload.model, "doubao-seedance-2.0"),
-                        "duration": payload.duration,
+                        "model": sd_model,
+                        "duration": sd_duration,
                         "size": apimart_video_size(payload.aspect_ratio or payload.size),
-                        "resolution": payload.resolution or "480p",
+                        "resolution": sd_resolution,
                     }
                     if image_with_roles:
                         body["image_with_roles"] = image_with_roles

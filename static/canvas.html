@@ -757,7 +757,9 @@
             .gate-subtitle { font-size:11px; }
             .gate-list { grid-template-columns:repeat(3, minmax(0, 1fr)); }
         }
-        .sdn-chip { display:inline-block; padding:1px 5px; margin:0 1px; border-radius:3px; font-size:10px; line-height:1.4; vertical-align:baseline; user-select:none; cursor:default; }
+        .sdn-chip { display:inline-flex; align-items:center; gap:2px; padding:1px 5px; margin:0 1px; border-radius:999px; font-size:10px; line-height:1.4; vertical-align:baseline; user-select:none; cursor:default; white-space:nowrap; }
+        .sdn-chip img { width:14px; height:14px; border-radius:50%; object-fit:cover; flex-shrink:0; }
+        .sdn-chip .sdn-chip-icon { font-size:10px; flex-shrink:0; }
         .sdn-chip-image { background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.4); color:#6ee7b7; }
         .sdn-chip-video { background:rgba(59,130,246,.15); border:1px solid rgba(59,130,246,.4); color:#93c5fd; }
         .sdn-chip-audio { background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.4); color:#a78bfa; }
@@ -5594,18 +5596,43 @@
             }
             return text;
         }
-        function sdnRenderPromptContent(root, prompt) {
+        function sdnCreateChipEl(token, inventory) {
+            const chip = document.createElement('span');
+            chip.contentEditable = 'false';
+            chip.dataset.sdnToken = token;
+            const m = token.match(/\[(图片|视频|音频)(\d+)\]/);
+            if (!m) { chip.textContent = token; chip.className = 'sdn-chip'; return chip; }
+            const [, type, idx] = m;
+            const num = Number(idx);
+            chip.className = 'sdn-chip ' + (type === '视频' ? 'sdn-chip-video' : type === '音频' ? 'sdn-chip-audio' : 'sdn-chip-image');
+            if (type === '图片' && inventory?.images?.[num - 1]?.url) {
+                const img = document.createElement('img');
+                img.src = inventory.images[num - 1].url;
+                img.width = 14; img.height = 14;
+                chip.appendChild(img);
+            } else if (type === '视频') {
+                const icon = document.createElement('span');
+                icon.className = 'sdn-chip-icon';
+                icon.textContent = '🎬';
+                chip.appendChild(icon);
+            } else if (type === '音频') {
+                const icon = document.createElement('span');
+                icon.className = 'sdn-chip-icon';
+                icon.textContent = '♪';
+                chip.appendChild(icon);
+            }
+            const label = document.createElement('span');
+            label.textContent = `${type}${idx}`;
+            chip.appendChild(label);
+            return chip;
+        }
+        function sdnRenderPromptContent(root, prompt, inventory) {
             const frag = document.createDocumentFragment();
             let lastIdx = 0, match;
             const re = new RegExp(SDN_TOKEN_RE);
             while ((match = re.exec(prompt)) !== null) {
                 if (match.index > lastIdx) frag.appendChild(document.createTextNode(prompt.slice(lastIdx, match.index)));
-                const chip = document.createElement('span');
-                chip.contentEditable = 'false';
-                chip.dataset.sdnToken = match[0];
-                chip.textContent = match[0];
-                chip.className = 'sdn-chip ' + (match[1] === '视频' ? 'sdn-chip-video' : match[1] === '音频' ? 'sdn-chip-audio' : 'sdn-chip-image');
-                frag.appendChild(chip);
+                frag.appendChild(sdnCreateChipEl(match[0], inventory));
                 lastIdx = re.lastIndex;
             }
             if (lastIdx < prompt.length) frag.appendChild(document.createTextNode(prompt.slice(lastIdx)));
@@ -5633,7 +5660,7 @@
             });
             return hasOverflow;
         }
-        function sdnInsertChipAtCursor(root, token) {
+        function sdnInsertChipAtCursor(root, token, inventory) {
             root.focus();
             const sel = window.getSelection();
             let range;
@@ -5647,11 +5674,7 @@
                 sel?.removeAllRanges();
                 sel?.addRange(range);
             }
-            const chip = document.createElement('span');
-            chip.contentEditable = 'false';
-            chip.dataset.sdnToken = token;
-            chip.textContent = token;
-            chip.className = 'sdn-chip ' + (token.startsWith('[视频') ? 'sdn-chip-video' : token.startsWith('[音频') ? 'sdn-chip-audio' : 'sdn-chip-image');
+            const chip = sdnCreateChipEl(token, inventory);
             range.insertNode(chip);
             range.setStartAfter(chip);
             range.collapse(true);
@@ -5741,7 +5764,7 @@
                 </div>`;
             const promptEl = wrap.querySelector('.sdn-prompt');
             const statusBar = wrap.querySelector('.sdn-status-bar');
-            sdnRenderPromptContent(promptEl, node.prompt || '');
+            sdnRenderPromptContent(promptEl, node.prompt || '', inventory);
             function refreshOverflow(){
                 const has = sdnMarkOverflowTokens(promptEl, node.seedanceMode || 'single_image');
                 if(has){ statusBar.textContent = '引用素材超出当前模式限制，请删除红色标记的引用'; statusBar.style.color = '#f87171'; statusBar.style.background = 'rgba(239,68,68,.08)'; }
@@ -5749,11 +5772,11 @@
             }
             refreshOverflow();
             promptEl.addEventListener('input', () => { node.prompt = sdnSerializePrompt(promptEl); scheduleSave(); refreshOverflow(); });
-            promptEl.addEventListener('blur', () => { sdnRenderPromptContent(promptEl, node.prompt || ''); refreshOverflow(); });
+            promptEl.addEventListener('blur', (e) => { if(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('.sdn-media-preview')) return; sdnRenderPromptContent(promptEl, node.prompt || '', inventory); refreshOverflow(); });
             promptEl.addEventListener('mousedown', e => e.stopPropagation());
             promptEl.addEventListener('keydown', e => e.stopPropagation());
             wrap.querySelectorAll('.sdn-media-capsule').forEach(thumb => {
-                thumb.addEventListener('mousedown', e => e.stopPropagation());
+                thumb.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
                 if(curMode !== 'multi_image') return;
                 thumb.onclick = e => {
                     e.stopPropagation();
@@ -5773,7 +5796,7 @@
                     } else if(token.startsWith('[音频')) {
                         if(audCount >= 3){ showToast('最多 3 段音频引用'); return; }
                     }
-                    sdnInsertChipAtCursor(promptEl, token);
+                    sdnInsertChipAtCursor(promptEl, token, inventory);
                     node.prompt = sdnSerializePrompt(promptEl);
                     scheduleSave();
                     refreshOverflow();
