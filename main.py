@@ -918,8 +918,7 @@ class ComicFrameUpdate(BaseModel):
 class ComicFrameReorder(BaseModel):
     frame_ids: list
 
-class ComicSelectVideo(BaseModel):
-    video_id: str
+
 
 def load_comic_projects():
     p = os.path.join(BASE_DIR, "data", "comic_projects.json")
@@ -4106,9 +4105,7 @@ async def create_comic_project(body: ComicProjectCreate):
             "style_negative_prompt": "",
             "style_name": ""
         },
-        "frames": [],
-        "video_tasks": [],
-        "merged_video_url": ""
+        "frames": []
     }
     def _add(projects):
         projects.append(project)
@@ -5046,7 +5043,6 @@ async def add_comic_frame(pid: str, body: ComicFrameCreate):
         "character_ids": body.character_ids or [],
         "scene_id": body.scene_id,
         "prop_ids": body.prop_ids or [],
-        "selected_video_id": None,
         "created_at": time.time(),
     }
     insert_at = body.insert_at
@@ -5153,7 +5149,6 @@ async def analyze_storyboard(pid: str):
             "image_prompt": str(fd.get("image_prompt") or ""),
             "image_url": "",
             "locked": False,
-            "selected_video_id": None,
             "character_ids": [],
             "scene_id": None,
             "prop_ids": [],
@@ -5215,99 +5210,6 @@ async def render_comic_frame(pid: str, fid: str):
     at = asyncio.create_task(_bg_render_frame(task_id, pid, fid))
     _update_task(task_id, _asyncio_task=at)
     return {"_task_id": task_id}
-
-@app.post("/api/comic/projects/{pid}/frames/{fid}/generate_video")
-async def generate_comic_frame_video(pid: str, fid: str):
-    video_task = {
-        "id": str(uuid.uuid4()),
-        "frame_id": fid,
-        "status": "failed",
-        "video_url": "",
-        "duration": 5,
-        "model": "stub",
-        "message": "视频生成需要配置视频提供商",
-        "created_at": time.time(),
-    }
-    result = {}
-    def _add(projects):
-        project = next((p for p in projects if p["id"] == pid), None)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
-        get_comic_frame_or_404(project, fid)
-        project.setdefault("video_tasks", []).append(video_task)
-        result["project"] = project
-        return projects
-    atomic_update_comic_projects(_add)
-    return result["project"]
-
-@app.post("/api/comic/projects/{pid}/frames/{fid}/select_video")
-async def select_comic_frame_video(pid: str, fid: str, body: ComicSelectVideo):
-    result = {}
-    def _select(projects):
-        project = next((p for p in projects if p["id"] == pid), None)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
-        _, frame = get_comic_frame_or_404(project, fid)
-        video_tasks = {t["id"]: t for t in project.get("video_tasks", [])}
-        task = video_tasks.get(body.video_id)
-        if not task or task.get("frame_id") != fid:
-            raise HTTPException(status_code=400, detail="video_id 不属于该分镜帧")
-        frame["selected_video_id"] = body.video_id
-        result["project"] = project
-        return projects
-    atomic_update_comic_projects(_select)
-    return result["project"]
-
-@app.post("/api/comic/projects/{pid}/merge_videos")
-async def merge_comic_videos(pid: str):
-    _, project_snapshot = get_comic_project_or_404(pid)
-    frames = project_snapshot.get("frames", [])
-    video_tasks_by_id = {t["id"]: t for t in project_snapshot.get("video_tasks", [])}
-    selected = [f for f in frames if f.get("selected_video_id")]
-    if not selected:
-        raise HTTPException(status_code=400, detail="没有已选择的视频")
-    video_files = []
-    for f in selected:
-        task = video_tasks_by_id.get(f["selected_video_id"])
-        if task and task.get("video_url"):
-            video_path = os.path.realpath(os.path.join(BASE_DIR, task["video_url"].lstrip("/")))
-            if not video_path.startswith(os.path.realpath(OUTPUT_DIR) + os.sep):
-                continue
-            if os.path.exists(video_path):
-                video_files.append(video_path)
-    if not video_files:
-        raise HTTPException(status_code=400, detail="没有可用的视频文件")
-    import subprocess
-    ffmpeg_path = shutil.which("ffmpeg")
-    if not ffmpeg_path:
-        raise HTTPException(status_code=500, detail="ffmpeg 未安装，无法合并视频")
-    list_file = os.path.join(OUTPUT_DIR, f"merge_list_{pid}.txt")
-    output_path = os.path.join(OUTPUT_DIR, f"merged_{pid}.mp4")
-    try:
-        with open(list_file, "w") as lf:
-            for vf in video_files:
-                lf.write(f"file '{vf}'\n")
-        proc = subprocess.run(
-            [ffmpeg_path, "-y", "-f", "concat", "-safe", "0", "-i", list_file, "-c", "copy", output_path],
-            capture_output=True, text=True, timeout=300
-        )
-        if proc.returncode != 0:
-            raise HTTPException(status_code=500, detail=f"ffmpeg 合并失败: {proc.stderr[:500]}")
-    finally:
-        if os.path.exists(list_file):
-            os.remove(list_file)
-    merged_url = f"/output/merged_{pid}.mp4"
-    result = {}
-    def _save(projects):
-        project = next((p for p in projects if p["id"] == pid), None)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
-        project["merged_video_url"] = merged_url
-        result["project"] = project
-        return projects
-    atomic_update_comic_projects(_save)
-    return result["project"]
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=3000)
