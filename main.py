@@ -655,6 +655,7 @@ class CanvasVideoRequest(BaseModel):
     size: str = ""
     images: List[AIReference] = []
     videos: List[str] = []
+    reference_audio_urls: List[str] = []
     enhance_prompt: bool = False
     enable_upsample: bool = False
     watermark: bool = False
@@ -2653,6 +2654,8 @@ async def canvas_video(payload: CanvasVideoRequest):
                         body["return_last_frame"] = True
                     if payload.generate_audio:
                         body["generate_audio"] = True
+                    if payload.reference_audio_urls:
+                        body["reference_audio_urls"] = payload.reference_audio_urls[:3]
             else:
                 # 非 APIMart：data URL 方式（OpenAI / ComflyAI 接口）
                 image_payload = []
@@ -2688,6 +2691,8 @@ async def canvas_video(payload: CanvasVideoRequest):
                     body["return_last_frame"] = True
                 if payload.generate_audio:
                     body["generate_audio"] = True
+                if payload.reference_audio_urls:
+                    body["reference_audio_urls"] = payload.reference_audio_urls[:3]
             # --- 发起视频生成请求 ---
             response = await client.post(submit_url, headers=api_headers(provider=provider), json=body)
             response.raise_for_status()

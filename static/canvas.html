@@ -323,6 +323,8 @@
         .port.out { right:-15px; }
         .port.out-audio { right:-15px; top:auto; bottom:18%; transform:translateY(50%); }
         .port.out-audio::after { background:#7c3aed; box-shadow:0 0 0 1px #a78bfa; }
+        .port.in-audio { left:-29px; top:auto; bottom:18%; transform:translateY(50%); }
+        .port.in-audio::after { background:#7c3aed; box-shadow:0 0 0 1px #a78bfa; }
         .node > .port { top:50%; }
         .group-node,.promptGroup-node { min-width:260px; background:rgba(255,255,255,.96); border:1px solid #e8edf3; box-shadow:0 16px 42px rgba(15,23,42,.08); z-index:0; }
         .group-node .node-head,.promptGroup-node .node-head { background:#fff; border-bottom:1px solid #f1f5f9; }
@@ -747,6 +749,11 @@
             .gate-subtitle { font-size:11px; }
             .gate-list { grid-template-columns:repeat(3, minmax(0, 1fr)); }
         }
+        .sdn-chip { display:inline-block; padding:1px 5px; margin:0 1px; border-radius:3px; font-size:10px; line-height:1.4; vertical-align:baseline; user-select:none; cursor:default; }
+        .sdn-chip-image { background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.4); color:#6ee7b7; }
+        .sdn-chip-video { background:rgba(245,158,11,.15); border:1px solid rgba(245,158,11,.4); color:#fcd34d; }
+        .sdn-chip-audio { background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.4); color:#a78bfa; }
+        .sdn-prompt[contenteditable]:empty::before { content:attr(data-placeholder); color:#6b7280; pointer-events:none; }
     </style>
     <link rel="stylesheet" href="/static/theme.css?v=20260510-studio-pages-blue-dark10">
 </head>
@@ -2551,6 +2558,8 @@
                 prompt:'',
                 generateAudio:false,
                 watermark:false,
+                seedanceMode:'single_image',
+                referenceVideos:[],
                 inputs:[],
                 running:false
             });
@@ -4478,6 +4487,7 @@
             if(canInput) el.insertAdjacentHTML('beforeend', `<div class="port in" title="${tr('canvas.connectHere')}"></div>`);
             if(canOutput) el.insertAdjacentHTML('beforeend', `<div class="port out" title="${tr('canvas.dragConnect')}"></div>`);
             if(node.type === 'asset' && node.voiceRefUrl) el.insertAdjacentHTML('beforeend', `<div class="port out-audio" title="${tr('canvas.dragConnect')} (Audio)"></div>`);
+            if(node.type === 'seedance') el.insertAdjacentHTML('beforeend', `<div class="port in-audio" title="${tr('canvas.connectHere')} (Audio)"></div>`);
             el.insertAdjacentHTML('beforeend', `<div class="resize-handle" title="${tr('canvas.resize')}"></div>`);
             el.querySelector('.node-head').onmousedown = e => { if(e.button === 0) startNodeDrag(e, node); };
             el.querySelector('.resize-handle').onmousedown = e => { if(e.button === 0 && !e.shiftKey) startNodeResize(e, node); };
@@ -4486,6 +4496,8 @@
             if(out) out.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'out'); };
             const outAudio = el.querySelector('.port.out-audio');
             if(outAudio) outAudio.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'out-audio'); };
+            const inAudio = el.querySelector('.port.in-audio');
+            if(inAudio) inAudio.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'in-audio'); };
             const inp = el.querySelector('.port.in');
             if(inp) inp.onmousedown = e => { if(e.button === 0 && !e.shiftKey) startLink(e, node.id, 'in'); };
             return el;
@@ -5545,6 +5557,59 @@
             bindCascadeButtons(wrap, node.id);
             return wrap;
         }
+        const SDN_TOKEN_RE = /\[(图片|视频|音频)(\d+)\]/g;
+        function sdnSerializePrompt(root) {
+            let text = '';
+            for (const node of root.childNodes) {
+                if (node.nodeType === Node.TEXT_NODE) { text += node.textContent; continue; }
+                if (node instanceof HTMLElement && node.dataset.sdnToken) { text += node.dataset.sdnToken; continue; }
+                if (node instanceof HTMLElement) { text += node.textContent; }
+            }
+            return text;
+        }
+        function sdnRenderPromptContent(root, prompt) {
+            const frag = document.createDocumentFragment();
+            let lastIdx = 0, match;
+            const re = new RegExp(SDN_TOKEN_RE);
+            while ((match = re.exec(prompt)) !== null) {
+                if (match.index > lastIdx) frag.appendChild(document.createTextNode(prompt.slice(lastIdx, match.index)));
+                const chip = document.createElement('span');
+                chip.contentEditable = 'false';
+                chip.dataset.sdnToken = match[0];
+                chip.textContent = match[0];
+                chip.className = 'sdn-chip ' + (match[1] === '视频' ? 'sdn-chip-video' : match[1] === '音频' ? 'sdn-chip-audio' : 'sdn-chip-image');
+                frag.appendChild(chip);
+                lastIdx = re.lastIndex;
+            }
+            if (lastIdx < prompt.length) frag.appendChild(document.createTextNode(prompt.slice(lastIdx)));
+            if (prompt.length === 0) frag.appendChild(document.createTextNode(''));
+            root.replaceChildren(frag);
+        }
+        function sdnInsertChipAtCursor(root, token) {
+            root.focus();
+            const sel = window.getSelection();
+            let range;
+            if (sel && sel.rangeCount > 0 && root.contains(sel.anchorNode)) {
+                range = sel.getRangeAt(0);
+                range.deleteContents();
+            } else {
+                range = document.createRange();
+                range.selectNodeContents(root);
+                range.collapse(false);
+                sel?.removeAllRanges();
+                sel?.addRange(range);
+            }
+            const chip = document.createElement('span');
+            chip.contentEditable = 'false';
+            chip.dataset.sdnToken = token;
+            chip.textContent = token;
+            chip.className = 'sdn-chip ' + (token.startsWith('[视频') ? 'sdn-chip-video' : token.startsWith('[音频') ? 'sdn-chip-audio' : 'sdn-chip-image');
+            range.insertNode(chip);
+            range.setStartAfter(chip);
+            range.collapse(true);
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+        }
         function renderSeedanceBody(node){
             const wrap = document.createElement('div');
             wrap.className = 'generator-body';
@@ -5552,10 +5617,40 @@
                 {id:'doubao-seedance-2-0-260128', label:'Seedance 2.0 质量版'},
                 {id:'doubao-seedance-2-0-fast-260128', label:'Seedance 2.0 快速版'}
             ];
+            const curMode = node.seedanceMode || 'single_image';
+            const MODES = [
+                {id:'single_image', label:'单图'},
+                {id:'first_last_frame', label:'首尾帧'},
+                {id:'multi_image', label:'多图参考'}
+            ];
+            const modeHint = curMode === 'first_last_frame' ? '<div class="sdn-mode-hint" style="font-size:10px;color:#f97316;margin:3px 0">需要连接 2 张图片（首帧 + 尾帧）</div>'
+                : curMode === 'multi_image' ? '<div class="sdn-mode-hint" style="font-size:10px;color:#f97316;margin:3px 0">第 1 张为主图，其余为参考图</div>' : '';
+            const refVideosVal = (node.referenceVideos || []).filter(v=>v).join('\n');
+            const refVideosSection = curMode === 'multi_image' ? `<div class="sdn-ref-videos" style="margin-top:4px"><div class="setting-title">参考视频 URL（每行一个，最多3个）</div><textarea class="sdn-ref-videos-input" rows="2" placeholder="https://..." style="width:100%;resize:vertical;font-size:10px;padding:3px 5px;border-radius:4px;border:1px solid #374151;background:#1f2937;color:#e5e7eb;box-sizing:border-box">${escapeHtml(refVideosVal)}</textarea></div>` : '';
             const modelOpts = MODELS.map(m => `<option value="${m.id}" ${node.model===m.id?'selected':''}>${m.label}</option>`).join('');
+            const inventory = buildSeedanceTokenInventory(node);
+            const previewItems = [
+                ...inventory.images.map((img,i) => {
+                    let roleTag = '';
+                    if(curMode === 'first_last_frame' && i === 0) roleTag = '<span style="font-size:8px;color:#f97316;display:block">首帧</span>';
+                    else if(curMode === 'first_last_frame' && i === 1) roleTag = '<span style="font-size:8px;color:#f97316;display:block">尾帧</span>';
+                    else if(curMode === 'multi_image' && i === 0) roleTag = '<span style="font-size:8px;color:#f97316;display:block">主图</span>';
+                    return `<div class="sdn-media-thumb" data-token="[图片${img.labelNumber}]" style="flex-shrink:0;cursor:pointer;text-align:center;border:1px solid #374151;border-radius:4px;padding:2px;background:#1f2937" title="点击插入 [图片${img.labelNumber}]"><img src="${escapeHtml(img.url)}" style="width:48px;height:36px;object-fit:cover;border-radius:3px;display:block"><span style="font-size:9px;color:#9ca3af;display:block">图片${img.labelNumber}</span>${roleTag}</div>`;
+                }),
+                ...inventory.videos.map(v => `<div class="sdn-media-thumb" data-token="[视频${v.labelNumber}]" style="flex-shrink:0;cursor:pointer;text-align:center;border:1px solid #374151;border-radius:4px;padding:2px;background:#1f2937" title="点击插入 [视频${v.labelNumber}]"><div style="width:48px;height:36px;display:flex;align-items:center;justify-content:center;background:#111827;border-radius:3px;font-size:16px">🎬</div><span style="font-size:9px;color:#9ca3af;display:block">视频${v.labelNumber}</span></div>`),
+                ...inventory.audios.map(a => `<div class="sdn-media-thumb" data-token="[音频${a.labelNumber}]" style="flex-shrink:0;cursor:pointer;text-align:center;border:1px solid #5b21b6;border-radius:4px;padding:2px;background:#1f2937" title="点击插入 [音频${a.labelNumber}]"><div style="width:48px;height:36px;display:flex;align-items:center;justify-content:center;background:#111827;border-radius:3px;font-size:16px;color:#a78bfa">♪</div><span style="font-size:9px;color:#a78bfa;display:block">音频${a.labelNumber}</span></div>`)
+            ];
+            const mediaPreviewHtml = previewItems.length ? `<div class="sdn-media-preview" style="display:flex;gap:4px;overflow-x:auto;padding:4px 0;margin-bottom:4px">${previewItems.join('')}</div>` : '';
             wrap.innerHTML = `
                 <div class="gen-settings" style="margin-bottom:6px">
-                    <textarea class="sdn-prompt" rows="3" placeholder="描述视频内容..." style="width:100%;resize:vertical;font-size:11px;padding:4px 6px;border-radius:4px;border:1px solid #374151;background:#1f2937;color:#e5e7eb;box-sizing:border-box">${escapeHtml(node.prompt||'')}</textarea>
+                    ${mediaPreviewHtml}
+                    <div class="sdn-prompt" contenteditable="true" data-placeholder="描述视频内容...${previewItems.length ? ' 点击上方素材插入引用token' : ''}" style="width:100%;min-height:52px;max-height:120px;overflow-y:auto;resize:vertical;font-size:11px;padding:4px 6px;border-radius:4px;border:1px solid #374151;background:#1f2937;color:#e5e7eb;box-sizing:border-box;white-space:pre-wrap;word-break:break-word;outline:none;line-height:1.6"></div>
+                </div>
+                <div class="gen-settings" style="margin-bottom:6px">
+                    <div class="sdn-mode-btns" style="display:flex;gap:2px;margin-bottom:4px">
+                        ${MODES.map(m => `<button type="button" class="sdn-mode-btn${m.id===curMode?' active':''}" data-mode="${m.id}" style="flex:1;font-size:10px;padding:3px 0;border-radius:4px;border:1px solid ${m.id===curMode?'#f97316':'#374151'};background:${m.id===curMode?'#7c2d12':'#1f2937'};color:${m.id===curMode?'#fed7aa':'#9ca3af'};cursor:pointer">${m.label}</button>`).join('')}
+                    </div>
+                    ${modeHint}${refVideosSection}
                 </div>
                 <div class="gen-settings">
                     <div class="gen-settings-row">
@@ -5595,7 +5690,33 @@
                 <div class="gen-run-row">
                     <button class="gen-btn" type="button">生成</button>
                 </div>`;
-            wrap.querySelector('.sdn-prompt').oninput = e => { node.prompt = e.target.value; scheduleSave(); };
+            const promptEl = wrap.querySelector('.sdn-prompt');
+            sdnRenderPromptContent(promptEl, node.prompt || '');
+            promptEl.addEventListener('input', () => { node.prompt = sdnSerializePrompt(promptEl); scheduleSave(); });
+            promptEl.addEventListener('blur', () => { sdnRenderPromptContent(promptEl, node.prompt || ''); });
+            promptEl.addEventListener('mousedown', e => e.stopPropagation());
+            promptEl.addEventListener('keydown', e => e.stopPropagation());
+            wrap.querySelectorAll('.sdn-media-thumb').forEach(thumb => {
+                thumb.addEventListener('mousedown', e => e.stopPropagation());
+                thumb.onclick = e => {
+                    e.stopPropagation();
+                    const token = thumb.dataset.token;
+                    sdnInsertChipAtCursor(promptEl, token);
+                    node.prompt = sdnSerializePrompt(promptEl);
+                    scheduleSave();
+                };
+            });
+            wrap.querySelectorAll('.sdn-mode-btn').forEach(btn => {
+                btn.onclick = e => {
+                    e.stopPropagation();
+                    node.seedanceMode = btn.dataset.mode;
+                    scheduleSave();
+                    const card = wrap.closest('.node');
+                    if(card){ const body = card.querySelector('.node-body'); if(body){ body.innerHTML=''; body.appendChild(renderSeedanceBody(node)); } }
+                };
+            });
+            const refInput = wrap.querySelector('.sdn-ref-videos-input');
+            if(refInput) refInput.oninput = e => { node.referenceVideos = e.target.value.split('\n').map(s=>s.trim()).filter(s=>s).slice(0,3); scheduleSave(); };
             wrap.querySelector('.sdn-model').onchange = e => { node.model = e.target.value; scheduleSave(); };
             wrap.querySelector('.sdn-aspect').onchange = e => { node.aspectRatio = e.target.value; scheduleSave(); };
             wrap.querySelector('.sdn-resolution').onchange = e => { node.resolution = e.target.value; scheduleSave(); };
@@ -5950,7 +6071,7 @@
             scheduleSave();
         }
 
-        const CANVAS_GENERATOR_TYPES = ['generator','msgen','comfy','video'];
+        const CANVAS_GENERATOR_TYPES = ['generator','msgen','comfy','video','seedance'];
         const CANVAS_IMAGE_OUTPUT_TYPES = ['generator','msgen','comfy'];
         function hasExplicitOutputConnection(nodeId){
             return connections.some(c => {
@@ -6264,6 +6385,36 @@
                 refreshRunNodes(node, out);
             }
         }
+        function buildSeedanceTokenInventory(node){
+            const sources = orderedSources(node, generatorSources(node));
+            const imageRefs = sources.flatMap(s => s.refs || []);
+            const images = imageRefs.map((ref, i) => ({labelNumber: i+1, url: ref.url, name: ref.name||''}));
+            const videoItems = (node.referenceVideos||[]).filter(v=>v);
+            const videos = videoItems.map((url, i) => ({labelNumber: i+1, url}));
+            const audioConns = connections.filter(c => c.to === node.id && c.fromPort === 'audio');
+            const audioItems = audioConns.map(c => nodes.find(n => n.id === c.from)).filter(Boolean).map(n => n.voiceRefUrl).filter(Boolean);
+            const audios = audioItems.map((url, i) => ({labelNumber: i+1, url}));
+            return {images, videos, audios};
+        }
+        function parseSeedanceTokens(prompt, inventory){
+            const TOKEN_RE = /\[(图片|视频|音频)(\d+)\]/g;
+            const matchedImageUrls = [];
+            const matchedVideoUrls = [];
+            const matchedAudioUrls = [];
+            const invalidTokens = [];
+            let match;
+            while((match = TOKEN_RE.exec(prompt)) !== null){
+                const [, type, idx] = match;
+                const num = Number(idx);
+                const list = type === '图片' ? inventory.images : type === '视频' ? inventory.videos : inventory.audios;
+                const item = list.find(x => x.labelNumber === num);
+                if(!item){ invalidTokens.push(match[0]); continue; }
+                const target = type === '图片' ? matchedImageUrls : type === '视频' ? matchedVideoUrls : matchedAudioUrls;
+                if(!target.includes(item.url)) target.push(item.url);
+            }
+            const cleanPrompt = prompt.replace(TOKEN_RE, ' ').replace(/\s+([,，.。!！?？])/g,'$1').replace(/\s{2,}/g,' ').trim();
+            return {cleanPrompt, matchedImageUrls, matchedVideoUrls, matchedAudioUrls, invalidTokens};
+        }
         async function runSeedanceNode(nodeId, opts={}){
             const node = nodes.find(n => n.id === nodeId);
             if(!node || (node.running && !opts.cascade)) return;
@@ -6271,6 +6422,35 @@
             if(!prompt){ alert('请先填写 Seedance 生成提示词'); return; }
             const sources = orderedSources(node, generatorSources(node));
             const refs = sources.flatMap(s => s.refs || []);
+            const mode = node.seedanceMode || 'single_image';
+            if(mode === 'first_last_frame' && refs.length < 2){ alert('首尾帧模式需要连接 2 张图片'); return; }
+            if(mode === 'multi_image' && refs.length < 1){ alert('多图参考模式至少需要 1 张主图'); return; }
+            let imagePayload;
+            if(mode === 'first_last_frame'){
+                imagePayload = [{url:refs[0].url, name:refs[0].name||'', role:'first_frame'}, {url:refs[1].url, name:refs[1].name||'', role:'last_frame'}];
+            } else if(mode === 'multi_image'){
+                imagePayload = refs.map((r,i) => ({url:r.url, name:r.name||'', role: i===0?'first_frame':'reference_image'}));
+            } else {
+                imagePayload = refs;
+            }
+            let refVideos = (node.referenceVideos||[]).filter(v=>v);
+            const tokenInventory = buildSeedanceTokenInventory(node);
+            const tokenResult = parseSeedanceTokens(prompt, tokenInventory);
+            const submissionPrompt = tokenResult.cleanPrompt || prompt;
+            if(tokenResult.matchedImageUrls.length){
+                const extraImages = tokenResult.matchedImageUrls.filter(url => !imagePayload.some(img => (img.url||img) === url)).map(url => ({url, name:'', role:'reference_image'}));
+                imagePayload = [...imagePayload, ...extraImages];
+            }
+            if(tokenResult.matchedVideoUrls.length){
+                const extraVideos = tokenResult.matchedVideoUrls.filter(url => !refVideos.includes(url));
+                refVideos = [...refVideos, ...extraVideos];
+            }
+            let refAudios = tokenInventory.audios.map(a => a.url);
+            if(tokenResult.matchedAudioUrls.length){
+                const extraAudios = tokenResult.matchedAudioUrls.filter(url => !refAudios.includes(url));
+                refAudios = [...refAudios, ...extraAudios];
+            }
+            if(tokenResult.invalidTokens.length) console.warn('Seedance: unknown tokens removed:', tokenResult.invalidTokens);
             let out = outputForNode(node, 460);
             const pendingId = uid('p');
             const run = runSnapshot(node, prompt, refs);
@@ -6283,13 +6463,15 @@
                     method:'POST',
                     headers:{'Content-Type':'application/json'},
                     body:JSON.stringify({
-                        prompt,
+                        prompt: submissionPrompt,
                         provider_id: providerId,
                         model: node.model || 'doubao-seedance-2-0-260128',
                         duration: Number(node.duration || 5),
                         aspect_ratio: node.aspectRatio || '16:9',
                         resolution: node.resolution || '',
-                        images: refs,
+                        images: imagePayload,
+                        videos: refVideos.length ? refVideos : undefined,
+                        reference_audio_urls: refAudios.length ? refAudios : undefined,
                         generate_audio: Boolean(node.generateAudio),
                         watermark: Boolean(node.watermark)
                     })
@@ -7954,7 +8136,9 @@
             originKind = originKind || 'out';
             const src = portPoint(originId, originKind);
             const source = nodes.find(n => n.id === originId);
-            const fromPort = originKind === 'out-audio' ? 'audio' : undefined;
+            const isAudioOut = originKind === 'out-audio';
+            const isAudioIn = originKind === 'in-audio';
+            const fromPort = (isAudioOut || isAudioIn) ? 'audio' : undefined;
             tempLink = {from:originId, originKind, x1:src.x, y1:src.y, x2:src.x, y2:src.y};
             window.onmousemove = e2 => {
                 const p = screenToWorld(e2.clientX, e2.clientY);
@@ -7963,13 +8147,14 @@
                 renderLinks();
             };
             window.onmouseup = e2 => {
-                const targetKind = (originKind === 'out' || originKind === 'out-audio') ? 'in' : 'out';
-                const targetPort = nearestPort(e2.clientX, e2.clientY, targetKind);
+                const targetKind = isAudioOut ? 'in-audio' : isAudioIn ? 'out-audio' : (originKind === 'out' ? 'in' : 'out');
+                let targetPort = nearestPort(e2.clientX, e2.clientY, targetKind);
+                if(!targetPort && isAudioOut) targetPort = nearestPort(e2.clientX, e2.clientY, 'in');
                 const target = targetPort?.closest('.node');
                 if(target){
                     const targetId = target.dataset.id;
-                    const fromId = (originKind === 'out' || originKind === 'out-audio') ? originId : targetId;
-                    const toId = (originKind === 'out' || originKind === 'out-audio') ? targetId : originId;
+                    const fromId = (originKind === 'out' || isAudioOut) ? originId : targetId;
+                    const toId = (originKind === 'out' || isAudioOut) ? targetId : originId;
                     if(canConnect(fromId, toId)){
                         if(!connections.some(c => c.from === fromId && c.to === toId && c.fromPort === fromPort)){ pushUndo(); connections.push({id:uid('c'), from:fromId, to:toId, fromPort:fromPort}); }
                         syncGeneratorInputs();
@@ -8050,7 +8235,7 @@
             if(to.type === 'loop') return Boolean(to.imageInput) && ['image','group','output'].includes(from.type);
             if(to.type === 'llm') return ['prompt','loop','promptGroup','llm','image','group','output'].includes(from.type);
             if(from.type === 'llm') return CANVAS_GENERATOR_TYPES.includes(to.type);
-            return CANVAS_GENERATOR_TYPES.includes(to.type) && ['image','prompt','loop','group','promptGroup','output','llm'].includes(from.type);
+            return CANVAS_GENERATOR_TYPES.includes(to.type) && ['image','prompt','loop','group','promptGroup','output','llm','asset'].includes(from.type);
         }
         function sanitizeConnections(){
             connections = (connections || []).filter(c => canConnect(c.from, c.to));
@@ -8174,6 +8359,7 @@
             }
             const w = el.offsetWidth || n.w || 260, h = el.offsetHeight || n.h || 160;
             if(kind === 'out-audio') return {x:n.x + w, y:n.y + h * 0.82};
+            if(kind === 'in-audio') return {x:n.x, y:n.y + h * 0.82};
             return kind === 'out' ? {x:n.x + w, y:n.y + h / 2} : {x:n.x, y:n.y + h / 2};
         }
         function renderLinks(){
@@ -8181,7 +8367,9 @@
             linkControlsEl.innerHTML = '';
             connections.forEach(c => {
                 const outKind = c.fromPort === 'audio' ? 'out-audio' : 'out';
-                const a = portPoint(c.from, outKind), b = portPoint(c.to, 'in');
+                const toNode = nodes.find(n => n.id === c.to);
+                const inKind = (c.fromPort === 'audio' && toNode && toNode.type === 'seedance') ? 'in-audio' : 'in';
+                const a = portPoint(c.from, outKind), b = portPoint(c.to, inKind);
                 linksEl.appendChild(pathEl(a.x, a.y, b.x, b.y, c.fromPort === 'audio' ? 'link audio-link' : 'link'));
                 const btn = linkDeleteButton(c, a, b);
                 linkControlsEl.appendChild(btn);
