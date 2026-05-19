@@ -1388,6 +1388,14 @@
             errorModal.classList.add('open');
             refreshIcons();
         }
+        function showToast(msg, duration=3000){
+            const el = document.createElement('div');
+            el.textContent = msg;
+            Object.assign(el.style, {position:'fixed',bottom:'24px',left:'50%',transform:'translateX(-50%)',background:'#1f2937',color:'#f3f4f6',padding:'8px 16px',borderRadius:'6px',fontSize:'13px',zIndex:'99999',boxShadow:'0 4px 12px rgba(0,0,0,.3)',opacity:'0',transition:'opacity .2s'});
+            document.body.appendChild(el);
+            requestAnimationFrame(() => el.style.opacity = '1');
+            setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 200); }, duration);
+        }
         function apiErrorMessage(data, fallback='请求失败'){
             if(!data) return fallback;
             if(typeof data === 'string') return data || fallback;
@@ -5709,7 +5717,9 @@
             wrap.querySelectorAll('.sdn-mode-btn').forEach(btn => {
                 btn.onclick = e => {
                     e.stopPropagation();
+                    const prev = node.seedanceMode;
                     node.seedanceMode = btn.dataset.mode;
+                    if(prev === 'multi_image' && node.seedanceMode !== 'multi_image') node.referenceVideos = [];
                     scheduleSave();
                     const card = wrap.closest('.node');
                     if(card){ const body = card.querySelector('.node-body'); if(body){ body.innerHTML=''; body.appendChild(renderSeedanceBody(node)); } }
@@ -6450,7 +6460,7 @@
                 const extraAudios = tokenResult.matchedAudioUrls.filter(url => !refAudios.includes(url));
                 refAudios = [...refAudios, ...extraAudios];
             }
-            if(tokenResult.invalidTokens.length) console.warn('Seedance: unknown tokens removed:', tokenResult.invalidTokens);
+            if(tokenResult.invalidTokens.length) showToast(`引用失效已移除: ${tokenResult.invalidTokens.join(', ')}`);
             let out = outputForNode(node, 460);
             const pendingId = uid('p');
             const run = runSnapshot(node, prompt, refs);
