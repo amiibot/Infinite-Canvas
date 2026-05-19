@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
     <link rel="icon" href="/static/logo.png" type="image/png">
     <title>GPT 对话</title>
     <script>
@@ -465,7 +466,7 @@
             if(msg.attachments?.length){
                 const thumbs = document.createElement('div');
                 thumbs.className = 'thumbs';
-                msg.attachments.forEach(ref => thumbs.insertAdjacentHTML('beforeend', `<img class="thumb" src="${ref.url}" loading="lazy">`));
+                msg.attachments.forEach(ref => thumbs.insertAdjacentHTML('beforeend', `<img class="thumb" src="${ref.url}" alt="" loading="lazy">`));
                 bubble.appendChild(thumbs);
             }
             if(msg.image_url){
@@ -500,7 +501,7 @@
 
         function renderRefs(){
             const strip = document.getElementById('refStrip');
-            strip.innerHTML = refs.map((ref,i) => `<div class="ref-chip"><img src="${ref.url}" loading="lazy"><button onclick="removeRef(${i})">×</button></div>`).join('');
+            strip.innerHTML = refs.map((ref,i) => `<div class="ref-chip"><img src="${ref.url}" alt="" loading="lazy"><button onclick="removeRef(${i})">×</button></div>`).join('');
         }
 
         function removeRef(i){ refs.splice(i,1); renderRefs(); }

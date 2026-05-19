@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
     <title>ComfyUI 设置</title>
     <script>
         (function(){
@@ -302,7 +303,7 @@
                             <div class="graph-title-row">
                                 <div style="min-width:0;flex:1">
                                     <div class="title-edit-row">
-                                        <input id="workflowTitleInput" class="workflow-title-input" type="text" placeholder="工作流名称" data-i18n-placeholder="comfy.workflowName" oninput="updateWorkflowTitle(this.value)">
+                                        <input id="workflowTitleInput" class="workflow-title-input" type="text" name="workflow-title" autocomplete="off" placeholder="工作流名称" data-i18n-placeholder="comfy.workflowName" oninput="updateWorkflowTitle(this.value)">
                                     </div>
                                     <div id="editorSub" class="editor-sub" data-i18n="comfy.editorSubDefault">从左侧列表选择，或上传新的 API 工作流</div>
                                 </div>
@@ -1188,7 +1189,7 @@
             }
             const fieldsHtml = currentConfig.fields.map(f => renderPreviewField(f)).join('');
             const resultHtml = runResult
-                ? `<div class="run-result"><img src="${escapeAttr(runResult)}" onclick="openImagePreview('${escapeAttr(runResult)}')"><div class="run-status">${tr('comfy.runSuccess')}</div></div>`
+                ? `<div class="run-result"><img src="${escapeAttr(runResult)}" alt="" onclick="openImagePreview('${escapeAttr(runResult)}')"><div class="run-status">${tr('comfy.runSuccess')}</div></div>`
                 : '';
             previewCard.innerHTML = `
                 ${fieldsHtml}
@@ -1224,7 +1225,7 @@
                 // 浏览器显示用本地 blob URL；如果没有就尝试用 /output/ 之类的可访问 URL；都没有显示占位文字
                 const displayUrl = previewImageUrls[f.id] || (typeof v === 'string' && /^(\/|https?:|blob:|data:)/.test(v) ? v : '');
                 return `<div class="pfield">${label}<div class="pfield-image-drop ${displayUrl?'has-image':''}" onclick="pickImage('${f.id}')">
-                    ${displayUrl ? `<img src="${escapeAttr(displayUrl)}">` : tr('comfy.clickUploadImage')}
+                    ${displayUrl ? `<img src="${escapeAttr(displayUrl)}" alt="">` : tr('comfy.clickUploadImage')}
                 </div></div>`;
             }
             if(f.type === 'boolean'){
@@ -1283,7 +1284,7 @@
             const comfy = miniTestNodes.find(n => n.type === 'comfy') || defaultMiniTestNodes().find(n => n.type === 'comfy');
             const output = miniTestNodes.find(n => n.type === 'output') || defaultMiniTestNodes().find(n => n.type === 'output');
             const resultHtml = runResult
-                ? `<div class="mini-result"><img src="${escapeAttr(runResult)}" onclick="openImagePreview('${escapeAttr(runResult)}')"><div class="run-status">${tr('comfy.runSuccess')}</div></div>`
+                ? `<div class="mini-result"><img src="${escapeAttr(runResult)}" alt="" onclick="openImagePreview('${escapeAttr(runResult)}')"><div class="run-status">${tr('comfy.runSuccess')}</div></div>`
                 : `<div class="preview-empty" style="padding:18px 10px">${tr('comfy.resultHere')}</div>`;
             target.style.display = 'block';
             target.innerHTML = `
@@ -1305,7 +1306,7 @@
                             <div class="mini-card" data-node="${n.id}" style="left:${n.x}px;top:${n.y}px">
                                 <span class="mini-port out"></span>
                                 <div class="mini-card-head"><i data-lucide="image" class="w-3.5 h-3.5"></i><span class="mini-node-title">${tr('comfy.imageNode')} ${i+1}</span>${miniDeleteButton(n)}</div>
-                                <div class="mini-card-body"><div class="mini-image-drop" onclick="pickMiniImage('${n.id}')">${n.url ? `<img src="${escapeAttr(n.url)}">` : tr('comfy.clickUploadImage')}</div></div>
+                                <div class="mini-card-body"><div class="mini-image-drop" onclick="pickMiniImage('${n.id}')">${n.url ? `<img src="${escapeAttr(n.url)}" alt="">` : tr('comfy.clickUploadImage')}</div></div>
                             </div>`).join('')}
                         <div class="mini-card comfy-card" data-node="${comfy.id}" style="left:${comfy.x}px;top:${comfy.y}px">
                             <span class="mini-port in"></span><span class="mini-port out"></span>
@@ -1340,7 +1341,7 @@
             const v = previewValues[f.id] ?? f.default ?? (f.type==='boolean'?false:(f.type==='number'||f.type==='slider'?0:''));
             if(f.type === 'image'){
                 const displayUrl = previewImageUrls[f.id] || (typeof v === 'string' && /^(\/|https?:|blob:|data:)/.test(v) ? v : '');
-                return `<div class="pfield">${label}<div class="mini-image-drop" onclick="pickImage('${f.id}')">${displayUrl ? `<img src="${escapeAttr(displayUrl)}">` : tr('comfy.clickUploadImage')}</div></div>`;
+                return `<div class="pfield">${label}<div class="mini-image-drop" onclick="pickImage('${f.id}')">${displayUrl ? `<img src="${escapeAttr(displayUrl)}" alt="">` : tr('comfy.clickUploadImage')}</div></div>`;
             }
             if(f.type === 'textarea'){
                 return `<div class="pfield">${label}<textarea class="mini-textarea" oninput="setPreviewValue('${f.id}',this.value)">${escapeHtml(v)}</textarea></div>`;

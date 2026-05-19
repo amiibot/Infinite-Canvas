@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
     <link rel="icon" href="/static/logo.png" type="image/png">
     <title>Z-IMAGE | 极简影像重塑</title>
     <script>
@@ -303,7 +304,7 @@
                             <p class="text-[11px] font-bold uppercase tracking-tight" data-i18n="studio.dropImage">Drop image here</p>
                         </div>
 
-                        <img id="previewImg" class="hidden absolute inset-0 w-full h-full object-cover">
+                        <img id="previewImg" alt="" class="hidden absolute inset-0 w-full h-full object-cover">
 
                         <div id="changeOverlay"
                             class="hidden absolute inset-0 bg-black/10 backdrop-blur-sm items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
@@ -426,7 +427,7 @@
                         </p>
                     </div>
 
-                    <img id="outputImg"
+                    <img id="outputImg" alt="output"
                         class="hidden w-full h-full object-contain p-8 cursor-zoom-in transition-transform duration-700 hover:scale-[1.02]"
                         onclick="zoomImage()">
 
@@ -462,10 +463,10 @@
             <div class="relative w-full flex justify-center">
                 <div id="compareContainer"
                     class="hidden relative w-full h-[75vh] rounded-3xl overflow-hidden bg-[#f8f8f9] border border-gray-200/50 shadow-2xl">
-                    <img id="compareGenerated" class="absolute inset-0 w-full h-full object-contain">
+                    <img id="compareGenerated" alt="" class="absolute inset-0 w-full h-full object-contain">
                     <div id="compareOriginalWrapper"
                         class="absolute inset-0 w-full h-full overflow-hidden border-r-2 border-white/80">
-                        <img id="compareOriginal" class="absolute inset-0 w-full h-full object-contain">
+                        <img id="compareOriginal" alt="" class="absolute inset-0 w-full h-full object-contain">
                     </div>
                     <div id="compareSlider" class="absolute inset-y-0 left-1/2 w-0.5 bg-white z-20 cursor-ew-resize">
                         <div
@@ -821,7 +822,7 @@
             card.onclick = () => { if(document.body.classList.contains('history-bulk-selecting')) return; openLightbox(data); };
 
             card.innerHTML = `
-                <img src="${data.images[0]}" class="w-full h-auto block transform group-hover:scale-105 transition-transform duration-1000">
+                <img src="${data.images[0]}" alt="" class="w-full h-auto block transform group-hover:scale-105 transition-transform duration-1000">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-5">
                     <p class="text-white text-[9px] font-black uppercase tracking-widest">Remaster Archive</p>
                 </div>

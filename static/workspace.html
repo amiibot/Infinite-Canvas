@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#ffffff">
     <link rel="icon" href="/static/logo.png" type="image/png">
     <title>项目</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -488,11 +489,11 @@
             <form id="seriesForm">
                 <div class="field">
                     <label for="seriesTitle" data-zh="系列标题" data-en="Series Title">系列标题</label>
-                    <input id="seriesTitle" name="title" required aria-label="系列标题" data-placeholder-zh="输入系列标题" data-placeholder-en="Enter series title">
+                    <input id="seriesTitle" name="title" autocomplete="off" required aria-label="系列标题" data-placeholder-zh="输入系列标题" data-placeholder-en="Enter series title">
                 </div>
                 <div class="field">
                     <label for="seriesDescription" data-zh="系列描述" data-en="Description">系列描述</label>
-                    <textarea id="seriesDescription" name="description" aria-label="系列描述" data-placeholder-zh="输入系列描述" data-placeholder-en="Enter a short description"></textarea>
+                    <textarea id="seriesDescription" name="description" autocomplete="off" aria-label="系列描述" data-placeholder-zh="输入系列描述" data-placeholder-en="Enter a short description"></textarea>
                 </div>
                 <div class="modal-actions">
                     <button type="button" data-close="seriesModal" data-zh="取消" data-en="Cancel">取消</button>
@@ -508,7 +509,7 @@
             <form id="projectForm">
                 <div class="field">
                     <label for="projectTitle" data-zh="项目标题" data-en="Project Title">项目标题</label>
-                    <input id="projectTitle" name="title" required aria-label="项目标题" data-placeholder-zh="输入项目标题" data-placeholder-en="Enter project title">
+                    <input id="projectTitle" name="title" autocomplete="off" required aria-label="项目标题" data-placeholder-zh="输入项目标题" data-placeholder-en="Enter project title">
                 </div>
                 <div class="modal-actions">
                     <button type="button" data-close="projectModal" data-zh="取消" data-en="Cancel">取消</button>
