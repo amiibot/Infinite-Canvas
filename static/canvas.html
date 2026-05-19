@@ -769,6 +769,7 @@
                 <button class="tool-btn" onclick="addGeneratorNode()"><i data-lucide="wand-sparkles" class="w-4 h-4"></i><span data-i18n="canvas.apiGenerate">API生成</span></button>
                 <button class="tool-btn" onclick="addMsGenNode()"><i data-lucide="cloud-lightning" class="w-4 h-4"></i><span data-i18n="canvas.msGenerate">MS生成</span></button>
                 <button class="tool-btn" onclick="addVideoNode()"><i data-lucide="clapperboard" class="w-4 h-4"></i><span data-i18n="canvas.videoGenerate">视频生成</span></button>
+                <button class="tool-btn" onclick="addSeedanceNode()"><i data-lucide="film" class="w-4 h-4"></i><span>Seedance</span></button>
                 <button class="tool-btn" onclick="addComfyNode()"><i data-lucide="workflow" class="w-4 h-4"></i>ComfyUI</button>
                 <button class="tool-btn" onclick="addOutputNode()"><i data-lucide="circle-dot" class="w-4 h-4"></i>Output</button>
                 <button class="tool-btn" onclick="groupSelectedImages()"><i data-lucide="group" class="w-4 h-4"></i><span data-i18n="canvas.group">分组</span></button>
@@ -2536,6 +2537,24 @@
                 running:false
             });
         }
+        function addSeedanceNode(point){
+            const p = point || defaultPoint(160, 0);
+            return addNode({
+                id:uid('sdn'),
+                type:'seedance',
+                x:p.x,
+                y:p.y,
+                model:'doubao-seedance-2-0-260128',
+                duration:5,
+                aspectRatio:'16:9',
+                resolution:'',
+                prompt:'',
+                generateAudio:false,
+                watermark:false,
+                inputs:[],
+                running:false
+            });
+        }
         async function getImageDimensions(url){
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -4282,7 +4301,7 @@
                 if(node.type === 'output') openOutputNodeMenu(node.id, e.clientX, e.clientY);
                 else openGeneratorNodeMenu(node.id, e.clientX, e.clientY);
             };
-            const title = node.type === 'image' ? 'Image' : node.type === 'asset' ? (node.name || 'Asset') : node.type === 'prompt' ? 'Prompt' : node.type === 'loop' ? tr('canvas.loopNode') : node.type === 'promptGroup' ? 'Prompts' : node.type === 'group' ? 'Group' : node.type === 'output' ? 'Output' : node.type === 'llm' ? 'LLM' : node.type === 'comfy' ? 'ComfyUI' : node.type === 'msgen' ? tr('canvas.modelscopeGenerate') : node.type === 'video' ? tr('canvas.videoGenerateNode') : tr('canvas.apiGenerate');
+            const title = node.type === 'image' ? 'Image' : node.type === 'asset' ? (node.name || 'Asset') : node.type === 'prompt' ? 'Prompt' : node.type === 'loop' ? tr('canvas.loopNode') : node.type === 'promptGroup' ? 'Prompts' : node.type === 'group' ? 'Group' : node.type === 'output' ? 'Output' : node.type === 'llm' ? 'LLM' : node.type === 'comfy' ? 'ComfyUI' : node.type === 'msgen' ? tr('canvas.modelscopeGenerate') : node.type === 'video' ? tr('canvas.videoGenerateNode') : node.type === 'seedance' ? 'Seedance' : tr('canvas.apiGenerate');
             // 失败徽章只在一键运行模式中显示，单节点失败已通过 alert 提示
             const showStatus = ['generator','msgen','comfy','llm'].includes(node.type) && node.runStatus
                 && (node.runStatus !== 'failed' || node._cascadeFailed);
@@ -4433,6 +4452,7 @@
             if(node.type === 'generator') body.appendChild(renderGeneratorBody(node));
             if(node.type === 'msgen') body.appendChild(renderMsGenBody(node));
             if(node.type === 'video') body.appendChild(renderVideoBody(node));
+            if(node.type === 'seedance') body.appendChild(renderSeedanceBody(node));
             if(node.type === 'comfy') body.appendChild(renderComfyBody(node));
             if(node.type === 'output') {
                 const pendingHtml = (node._pending || []).map(p =>
@@ -4453,8 +4473,8 @@
                 if(e.button !== 0 || !isNodeDragSurface(e.target)) return;
                 startNodeDrag(e, node);
             };
-            const canInput = ['generator','comfy','output','llm','msgen','video'].includes(node.type) || (node.type === 'loop' && node.imageInput);
-            const canOutput = ['image','prompt','loop','group','promptGroup','generator','comfy','llm','msgen','video','asset'].includes(node.type);
+            const canInput = ['generator','comfy','output','llm','msgen','video','seedance'].includes(node.type) || (node.type === 'loop' && node.imageInput);
+            const canOutput = ['image','prompt','loop','group','promptGroup','generator','comfy','llm','msgen','video','asset','seedance'].includes(node.type);
             if(canInput) el.insertAdjacentHTML('beforeend', `<div class="port in" title="${tr('canvas.connectHere')}"></div>`);
             if(canOutput) el.insertAdjacentHTML('beforeend', `<div class="port out" title="${tr('canvas.dragConnect')}"></div>`);
             if(node.type === 'asset' && node.voiceRefUrl) el.insertAdjacentHTML('beforeend', `<div class="port out-audio" title="${tr('canvas.dragConnect')} (Audio)"></div>`);
@@ -5525,6 +5545,73 @@
             bindCascadeButtons(wrap, node.id);
             return wrap;
         }
+        function renderSeedanceBody(node){
+            const wrap = document.createElement('div');
+            wrap.className = 'generator-body';
+            const MODELS = [
+                {id:'doubao-seedance-2-0-260128', label:'Seedance 2.0 质量版'},
+                {id:'doubao-seedance-2-0-fast-260128', label:'Seedance 2.0 快速版'}
+            ];
+            const modelOpts = MODELS.map(m => `<option value="${m.id}" ${node.model===m.id?'selected':''}>${m.label}</option>`).join('');
+            wrap.innerHTML = `
+                <div class="gen-settings" style="margin-bottom:6px">
+                    <textarea class="sdn-prompt" rows="3" placeholder="描述视频内容..." style="width:100%;resize:vertical;font-size:11px;padding:4px 6px;border-radius:4px;border:1px solid #374151;background:#1f2937;color:#e5e7eb;box-sizing:border-box">${escapeHtml(node.prompt||'')}</textarea>
+                </div>
+                <div class="gen-settings">
+                    <div class="gen-settings-row">
+                        <select class="select-lite sdn-model" style="flex:1">${modelOpts}</select>
+                    </div>
+                    <div class="gen-settings-row">
+                        <label class="field" style="flex:1">
+                            <div class="setting-title">比例</div>
+                            <select class="select-lite sdn-aspect compact-select">
+                                <option value="16:9" ${node.aspectRatio==='16:9'?'selected':''}>16:9</option>
+                                <option value="9:16" ${node.aspectRatio==='9:16'?'selected':''}>9:16</option>
+                                <option value="1:1" ${node.aspectRatio==='1:1'?'selected':''}>1:1</option>
+                                <option value="4:3" ${node.aspectRatio==='4:3'?'selected':''}>4:3</option>
+                                <option value="3:4" ${node.aspectRatio==='3:4'?'selected':''}>3:4</option>
+                                <option value="21:9" ${node.aspectRatio==='21:9'?'selected':''}>21:9</option>
+                            </select>
+                        </label>
+                        <label class="field" style="flex:1">
+                            <div class="setting-title">分辨率</div>
+                            <select class="select-lite sdn-resolution compact-select">
+                                <option value="" ${!node.resolution?'selected':''}>Auto</option>
+                                <option value="480p" ${node.resolution==='480p'?'selected':''}>480p</option>
+                                <option value="720p" ${node.resolution==='720p'?'selected':''}>720p</option>
+                                <option value="1080p" ${node.resolution==='1080p'?'selected':''}>1080p</option>
+                            </select>
+                        </label>
+                        <label class="field" style="flex:1">
+                            <div class="setting-title">时长(秒)</div>
+                            <input class="setting-input sdn-duration" type="number" min="1" max="30" step="1" value="${Number(node.duration||5)}">
+                        </label>
+                    </div>
+                    <div class="gen-settings-row" style="flex-wrap:wrap">
+                        <button type="button" class="setting-check ${node.generateAudio?'active':''}" data-sdn-toggle="generateAudio"><span class="check-dot"></span>生成音频</button>
+                        <button type="button" class="setting-check ${node.watermark?'active':''}" data-sdn-toggle="watermark"><span class="check-dot"></span>水印</button>
+                    </div>
+                </div>
+                <div class="gen-run-row">
+                    <button class="gen-btn" type="button">生成</button>
+                </div>`;
+            wrap.querySelector('.sdn-prompt').oninput = e => { node.prompt = e.target.value; scheduleSave(); };
+            wrap.querySelector('.sdn-model').onchange = e => { node.model = e.target.value; scheduleSave(); };
+            wrap.querySelector('.sdn-aspect').onchange = e => { node.aspectRatio = e.target.value; scheduleSave(); };
+            wrap.querySelector('.sdn-resolution').onchange = e => { node.resolution = e.target.value; scheduleSave(); };
+            wrap.querySelector('.sdn-duration').oninput = e => { node.duration = Math.max(1, Math.min(30, Number(e.target.value)||5)); scheduleSave(); };
+            wrap.querySelectorAll('[data-sdn-toggle]').forEach(btn => {
+                btn.onclick = e => {
+                    e.stopPropagation();
+                    const key = btn.dataset.sdnToggle;
+                    node[key] = !node[key];
+                    btn.classList.toggle('active', node[key]);
+                    scheduleSave();
+                };
+            });
+            wrap.querySelector('.gen-btn').onclick = e => { e.stopPropagation(); runCanvasGenerate(node.id); };
+            return wrap;
+        }
         function renderPromptPreview(container, promptInputs){
             if(!container) return;
             container.innerHTML = promptInputs.length ? `<div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Prompts</div>${promptInputs.map(src => `<div class="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 line-clamp-2">${escapeHtml(src.label)}</div>`).join('')}` : '';
@@ -6177,6 +6264,59 @@
                 refreshRunNodes(node, out);
             }
         }
+        async function runSeedanceNode(nodeId, opts={}){
+            const node = nodes.find(n => n.id === nodeId);
+            if(!node || (node.running && !opts.cascade)) return;
+            const prompt = (node.prompt || '').trim();
+            if(!prompt){ alert('请先填写 Seedance 生成提示词'); return; }
+            const sources = orderedSources(node, generatorSources(node));
+            const refs = sources.flatMap(s => s.refs || []);
+            let out = outputForNode(node, 460);
+            const pendingId = uid('p');
+            const run = runSnapshot(node, prompt, refs);
+            if(out) out._pending = [...(out._pending || []), makePending(pendingId, run)];
+            if(!opts.cascade){ node.running = true; refreshRunNodes(node, out); }
+            else refreshRunNodes(node, out);
+            const providerId = resolveVideoProviderId(videoApiProviders()[0]?.id || 'comfly');
+            try {
+                const result = await fetch('/api/canvas-video', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({
+                        prompt,
+                        provider_id: providerId,
+                        model: node.model || 'doubao-seedance-2-0-260128',
+                        duration: Number(node.duration || 5),
+                        aspect_ratio: node.aspectRatio || '16:9',
+                        resolution: node.resolution || '',
+                        images: refs,
+                        generate_audio: Boolean(node.generateAudio),
+                        watermark: Boolean(node.watermark)
+                    })
+                }).then(async r => { if(!r.ok) throw new Error(await responseErrorMessage(r, '视频生成失败')); return r.json(); });
+                const meta = collectRunMeta(out, pendingId);
+                if(out) out._pending = (out._pending || []).filter(p => p.id !== pendingId);
+                const outputUrls = result.videos || [];
+                run.request = requestMetaFromResult(result);
+                appendOutputImages(out, outputUrls, refs[0], [meta]);
+                mergeGeneratedOutputs(node, outputUrls, Boolean(opts.cascade));
+                addGenerationLog({run, outputs:outputUrls, runMs:meta.runMs || 0});
+                node.runStatus = 'done'; node.runError = '';
+                refreshRunNodes(node, out);
+                scheduleSave();
+            } catch(err) {
+                const meta = collectRunMeta(out, pendingId);
+                addGenerationLog({run, outputs:[], runMs:meta.runMs || 0, error:err.message || String(err)});
+                if(out) out._pending = (out._pending || []).filter(p => p.id !== pendingId);
+                node.runStatus = 'failed'; node.runError = err.message || String(err);
+                refreshRunNodes(node, out);
+                if(opts.cascade) throw err;
+                alert(err.message || '视频生成失败');
+            } finally {
+                node.running = false;
+                refreshRunNodes(node, out);
+            }
+        }
         async function uploadCanvasUrlToComfy(url){
             const blob = await fetch(url).then(r => {
                 if(!r.ok) throw new Error(langIsEn() ? 'Image read failed' : '图片读取失败');
@@ -6507,6 +6647,7 @@
             if(node.type === 'comfy') return runComfyNode(node.id, runOpts);
             if(node.type === 'llm') return runLLMNode(node.id, runOpts);
             if(node.type === 'video') return runVideoNode(node.id, runOpts);
+            if(node.type === 'seedance') return runSeedanceNode(node.id, runOpts);
             return Promise.resolve();
         }
         function runCascadeNodeWithLoopContext(node, ctx, opts={}){
@@ -6532,7 +6673,7 @@
             return Promise.allSettled(workers);
         }
         function canvasRunTypes(){
-            return ['generator','msgen','comfy','llm','video'];
+            return ['generator','msgen','comfy','llm','video','seedance'];
         }
         function canvasWorkflowEdges(){
             const runTypes = canvasRunTypes();
