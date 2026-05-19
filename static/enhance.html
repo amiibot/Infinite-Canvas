@@ -84,7 +84,7 @@
         /* 统一组件风格 */
         .glass-btn {
             background: #111827;
-            transition: all 0.3s var(--easing);
+            transition: background .2s ease, color .2s ease, border-color .2s ease;
         }
 
         .glass-btn:hover {
@@ -100,7 +100,7 @@
         .upload-item {
             background: var(--card);
             border: 1px dashed #e2e8f0;
-            transition: all 0.4s var(--easing);
+            transition: transform .3s ease, opacity .3s ease;
         }
 
         .upload-item:hover {
@@ -123,7 +123,7 @@
             border: 1px solid #f1f5f9;
             border-radius: 24px;
             overflow: hidden;
-            transition: all 0.5s var(--easing);
+            transition: transform .4s ease, opacity .4s ease;
         }
 
         .masonry-item:hover {
@@ -232,7 +232,7 @@
             font-size: 10px;
             font-weight: 600;
             letter-spacing: .02em;
-            transition: all .25s var(--easing);
+            transition: background .2s ease, color .2s ease, border-color .2s ease;
             cursor: pointer;
         }
 
@@ -297,7 +297,7 @@
 
                         <div id="uploadContent" class="text-center space-y-4">
                             <div
-                                class="w-14 h-14 rounded-full border border-gray-200 bg-white flex items-center justify-center mx-auto group-hover:bg-black group-hover:text-white group-hover:border-black transition-all duration-500">
+                                class="w-14 h-14 rounded-full border border-gray-200 bg-white flex items-center justify-center mx-auto group-hover:bg-black group-hover:text-white group-hover:border-black transition-colors duration-500">
                                 <i data-lucide="arrow-up" class="w-5 h-5"></i>
                             </div>
                             <p class="text-[11px] font-bold uppercase tracking-tight" data-i18n="studio.dropImage">Drop image here</p>
@@ -367,11 +367,11 @@
                             </div>
                             <div id="upscaleOptions" class="hidden pt-4 mt-4 border-t border-gray-100 grid-cols-2 gap-3">
                                 <button id="btn2x" onclick="setUpscaleFactor(2048)"
-                                    class="py-2.5 rounded-xl border border-black bg-black text-white text-[10px] font-bold transition-all">
+                                    class="py-2.5 rounded-xl border border-black bg-black text-white text-[10px] font-bold transition-colors">
                                     2x (2K)
                                 </button>
                                 <button id="btn4x" onclick="setUpscaleFactor(4096)"
-                                    class="py-2.5 rounded-xl border border-gray-200 text-gray-400 text-[10px] font-bold hover:border-black hover:text-black transition-all">
+                                    class="py-2.5 rounded-xl border border-gray-200 text-gray-400 text-[10px] font-bold hover:border-black hover:text-black transition-colors">
                                     4x (4K)
                                 </button>
                             </div>
@@ -397,7 +397,7 @@
                             </div>
                             <div>
                                 <label class="text-[10px] font-bold uppercase tracking-tight text-gray-600 block mb-2" data-i18n="studio.promptOptional">Prompt (optional)</label>
-                                <textarea id="msPromptInput" rows="2"
+                                <textarea id="msPromptInput" rows="2" aria-label="提示词"
                                     class="w-full border border-gray-200 rounded-xl p-3 text-[12px] resize-none outline-none focus:border-black transition-colors"
                                     placeholder="masterpiece, best quality, ultra-detailed, high resolution"></textarea>
                             </div>
@@ -427,11 +427,11 @@
                     </div>
 
                     <img id="outputImg"
-                        class="hidden w-full h-full object-contain p-8 cursor-zoom-in transition-all duration-700 hover:scale-[1.02]"
+                        class="hidden w-full h-full object-contain p-8 cursor-zoom-in transition-transform duration-700 hover:scale-[1.02]"
                         onclick="zoomImage()">
 
                     <a id="downloadBtn" href="#" download
-                        class="hidden absolute bottom-8 right-8 w-14 h-14 bg-white shadow-2xl rounded-2xl flex items-center justify-center hover:bg-black hover:text-white transition-all duration-500 border border-gray-100">
+                        class="hidden absolute bottom-8 right-8 w-14 h-14 bg-white shadow-2xl rounded-2xl flex items-center justify-center hover:bg-black hover:text-white transition-colors duration-500 border border-gray-100">
                         <i data-lucide="download" class="w-5 h-5"></i>
                     </a>
                 </div>
@@ -453,7 +453,7 @@
 
     <div id="lightbox" onclick="handleOutsideClick(event)"
         class="hidden fixed inset-0 z-50 bg-white/95 backdrop-blur-3xl flex items-center justify-center p-8">
-        <button onclick="closeLightbox()"
+        <button onclick="closeLightbox()" aria-label="关闭"
             class="absolute top-10 right-10 p-2 hover:rotate-90 transition-transform duration-500">
             <i data-lucide="x" class="w-8 h-8"></i>
         </button>
@@ -482,7 +482,7 @@
                 </div>
             </div>
             <div class="mt-8">
-                <button onclick="downloadLightboxImage()"
+                <button onclick="downloadLightboxImage()" aria-label="下载"
                     class="px-10 py-4 bg-black text-white rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl">
                     <i data-lucide="save" class="w-4 h-4"></i> Save Master
                 </button>
@@ -546,10 +546,10 @@
 
             // Helper to set active/inactive styles
             const setActive = (btn) => {
-                btn.className = "py-2.5 rounded-xl border border-black bg-black text-white text-[10px] font-bold transition-all";
+                btn.className = "py-2.5 rounded-xl border border-black bg-black text-white text-[10px] font-bold transition-colors";
             };
             const setInactive = (btn) => {
-                btn.className = "py-2.5 rounded-xl border border-gray-200 text-gray-400 text-[10px] font-bold hover:border-black hover:text-black transition-all";
+                btn.className = "py-2.5 rounded-xl border border-gray-200 text-gray-400 text-[10px] font-bold hover:border-black hover:text-black transition-colors";
             };
 
             if (factor === 2048) {

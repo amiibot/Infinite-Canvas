@@ -189,7 +189,7 @@
                     </div>
                     <div id="charList"></div>
                     <div class="inline-form" id="charForm">
-                        <input class="field" id="charNameInput" placeholder="角色名称" />
+                        <input class="field" id="charNameInput" placeholder="角色名称" aria-label="角色名称" />
                         <div class="form-row">
                             <button class="action-btn" id="saveCharBtn" style="height:34px;font-size:13px;">保存</button>
                             <button class="action-btn" id="cancelCharBtn" style="height:34px;font-size:13px;">取消</button>
@@ -203,7 +203,7 @@
                     </div>
                     <div id="sceneList"></div>
                     <div class="inline-form" id="sceneForm">
-                        <input class="field" id="sceneNameInput" placeholder="场景名称" />
+                        <input class="field" id="sceneNameInput" placeholder="场景名称" aria-label="场景名称" />
                         <div class="form-row">
                             <button class="action-btn" id="saveSceneBtn" style="height:34px;font-size:13px;">保存</button>
                             <button class="action-btn" id="cancelSceneBtn" style="height:34px;font-size:13px;">取消</button>
@@ -218,8 +218,8 @@
 <div class="overlay" id="newEpisodeOverlay">
     <div class="modal">
         <h3 data-zh="新建剧集" data-en="New Episode">新建剧集</h3>
-        <input class="field" id="epTitleInput" placeholder="剧集标题" />
-        <input class="field" id="epNumInput" type="number" placeholder="集数（可选）" min="1" />
+        <input class="field" id="epTitleInput" placeholder="剧集标题" aria-label="集标题" />
+        <input class="field" id="epNumInput" type="number" placeholder="集数（可选）" aria-label="集数" min="1" />
         <div class="modal-actions">
             <button class="action-btn" id="cancelEpBtn">取消</button>
             <button class="action-btn primary" id="createEpBtn">创建</button>

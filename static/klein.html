@@ -57,14 +57,14 @@
         .nano-input {
             background: var(--card);
             border: 1px solid #eef0f2;
-            transition: all 0.3s var(--easing);
+            transition: border-color .2s ease, box-shadow .2s ease;
         }
         .nano-input:focus { border-color: #000; box-shadow: 0 0 0 1px #000; }
 
         .upload-item {
             background: var(--card);
             border: 1px dashed #e2e8f0;
-            transition: all 0.4s var(--easing);
+            transition: transform .3s ease, opacity .3s ease;
             position: relative;
             overflow: hidden;
         }
@@ -82,7 +82,7 @@
 
         .glass-btn {
             background: #111827;
-            transition: all 0.3s var(--easing);
+            transition: background .2s ease, color .2s ease, border-color .2s ease;
         }
         .glass-btn:hover { background: #000; transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0,0,0,0.1); }
         .glass-btn:active { transform: scale(0.98); }
@@ -126,7 +126,7 @@
             font-size: 10px;
             font-weight: 600;
             letter-spacing: .02em;
-            transition: all .25s var(--easing);
+            transition: background .2s ease, color .2s ease, border-color .2s ease;
             cursor: pointer;
         }
         .engine-btn.active {
@@ -177,7 +177,7 @@
             overflow: hidden;
             background: #fff;
             border: 1px solid #f1f5f9;
-            transition: all 0.5s var(--easing);
+            transition: transform .4s ease, opacity .4s ease;
         }
         .masonry-item:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(0,0,0,0.08); }
 
@@ -202,7 +202,7 @@
                         <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
                         <span class="text-[10px] font-black uppercase tracking-widest" data-i18n="studio.inputPrompt">Input Prompt</span>
                     </div>
-                    <textarea id="promptInput" rows="5"
+                    <textarea id="promptInput" rows="5" aria-label="提示词"
                         class="nano-input w-full p-6 rounded-3xl text-sm outline-none resize-none placeholder-gray-300"
                         placeholder="Describe your vision here..." data-i18n-placeholder="studio.describeVision"></textarea>
                 </section>
@@ -220,7 +220,7 @@
                             <i data-lucide="plus" class="w-5 h-5 text-gray-300 group-hover:text-black transition-colors"></i>
                             <span class="text-[9px] mt-2 font-bold text-gray-400 uppercase">Main</span>
                             <img id="prev1" class="preview-img hidden">
-                            <button id="del1" onclick="clearSlot(1, event)"
+                            <button id="del1" onclick="clearSlot(1, event)" aria-label="删除"
                                 class="hidden absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full shadow-sm z-10 flex items-center justify-center text-xs">×</button>
                         </div>
                         <div id="drop-zone-2" onclick="document.getElementById('file2').click()"
@@ -229,7 +229,7 @@
                             <i data-lucide="plus" class="w-5 h-5 text-gray-300 group-hover:text-black transition-colors"></i>
                             <span class="text-[9px] mt-2 font-bold text-gray-400 uppercase">Aux A</span>
                             <img id="prev2" class="preview-img hidden">
-                            <button id="del2" onclick="clearSlot(2, event)"
+                            <button id="del2" onclick="clearSlot(2, event)" aria-label="删除"
                                 class="hidden absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full shadow-sm z-10 flex items-center justify-center text-xs">×</button>
                         </div>
                         <div id="drop-zone-3" onclick="document.getElementById('file3').click()"
@@ -238,7 +238,7 @@
                             <i data-lucide="plus" class="w-5 h-5 text-gray-300 group-hover:text-black transition-colors"></i>
                             <span class="text-[9px] mt-2 font-bold text-gray-400 uppercase">Aux B</span>
                             <img id="prev3" class="preview-img hidden">
-                            <button id="del3" onclick="clearSlot(3, event)"
+                            <button id="del3" onclick="clearSlot(3, event)" aria-label="删除"
                                 class="hidden absolute top-2 right-2 w-6 h-6 bg-white/90 rounded-full shadow-sm z-10 flex items-center justify-center text-xs">×</button>
                         </div>
                     </div>
@@ -300,10 +300,10 @@
                         <p class="text-[10px] font-black tracking-[0.5em] uppercase" data-i18n="studio.synthesizing">Synthesizing</p>
                     </div>
                     <img id="outputImg"
-                        class="hidden w-full h-full object-contain p-8 cursor-zoom-in transition-all duration-700"
+                        class="hidden w-full h-full object-contain p-8 cursor-zoom-in transition-transform duration-700"
                         onclick="zoomImage()">
                     <a id="downloadBtn" href="#" download
-                        class="hidden absolute top-8 right-8 w-12 h-12 bg-white/90 backdrop-blur-md shadow-2xl rounded-2xl flex items-center justify-center hover:bg-black hover:text-white active:scale-95 transition-all">
+                        class="hidden absolute top-8 right-8 w-12 h-12 bg-white/90 backdrop-blur-md shadow-2xl rounded-2xl flex items-center justify-center hover:bg-black hover:text-white active:scale-95 transition-colors">
                         <i data-lucide="download" class="w-4 h-4"></i>
                     </a>
                 </div>
@@ -345,7 +345,7 @@
                     <div id="lightboxRes" data-no-pan
                         class="absolute top-6 left-6 bg-black/30 backdrop-blur-md border border-white/20 text-white px-3 py-1.5 rounded-full text-[10px] font-medium tracking-wider opacity-0 transition-opacity duration-300 pointer-events-none z-30">
                     </div>
-                    <button onclick="downloadLightboxImage()" data-no-pan
+                    <button onclick="downloadLightboxImage()" data-no-pan aria-label="下载"
                         class="absolute top-6 right-6 bg-black text-white w-12 h-12 rounded-2xl flex items-center justify-center shadow-2xl z-30 hover:scale-105 transition-transform pointer-events-auto">
                         <i data-lucide="download" class="w-5 h-5"></i>
                     </button>
@@ -357,11 +357,11 @@
                     <p id="lightboxPrompt" class="text-gray-700 text-sm leading-relaxed"></p>
                 </div>
                 <button id="sameStyleBtn" onclick="applySameStyle()"
-                    class="hidden whitespace-nowrap bg-black text-white px-8 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all active:scale-95 flex items-center gap-2">
+                    class="hidden whitespace-nowrap bg-black text-white px-8 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-colors active:scale-95 flex items-center gap-2">
                     <i data-lucide="copy" class="w-4 h-4"></i><span data-i18n="studio.replicate">Replicate</span>
                 </button>
             </div>
-            <button onclick="closeLightbox()"
+            <button onclick="closeLightbox()" aria-label="关闭"
                 class="absolute -top-12 -right-12 p-4 text-gray-400 hover:text-black transition-colors">
                 <i data-lucide="x" class="w-8 h-8"></i>
             </button>
@@ -736,7 +736,7 @@
             card.onclick = () => { if(document.body.classList.contains('history-bulk-selecting')) return; openLightbox(data); };
             card.innerHTML = `
                 <img src="${data.images[0]}" class="w-full h-full object-cover block transform group-hover:scale-105 transition-transform duration-1000" loading="lazy">
-                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all p-6 flex flex-col justify-end">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-6 flex flex-col justify-end">
                     <p class="text-white text-[10px] font-medium line-clamp-2 uppercase tracking-wider">${data.prompt || "Klein Archive"}</p>
                     ${data.model ? `<p class="text-white/50 text-[9px] mt-1">${data.model.split('/').pop()}</p>` : ''}
                 </div>

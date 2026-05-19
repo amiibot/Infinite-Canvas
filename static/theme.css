@@ -1635,3 +1635,19 @@ body.studio-theme-dark .ios-switch input:checked + .ios-slider:before {
     background: #10141d !important;
     box-shadow: 0 2px 7px rgba(16,20,29,.22) !important;
 }
+
+/* #6 Global focus-visible fallback */
+:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+}
+
+/* #8 Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

@@ -134,6 +134,23 @@
         container.addEventListener('wheel', onWheel, { passive:false });
         container.addEventListener('mousedown', onDown);
         container.addEventListener('dblclick', onDblClick);
+        container.addEventListener('keydown', function(e){
+            if(e.key === '+' || e.key === '='){
+                e.preventDefault();
+                zoom = Math.min(maxZoom, zoom * 1.2);
+                apply();
+            } else if(e.key === '-'){
+                e.preventDefault();
+                zoom = Math.max(minZoom, zoom * 0.8);
+                if(zoom <= 1.001) pan = {x:0, y:0};
+                apply();
+            } else if(e.key === '0'){
+                e.preventDefault();
+                reset();
+            }
+        });
+        if(!container.getAttribute('tabindex')) container.setAttribute('tabindex', '0');
+        container.setAttribute('aria-label', container.getAttribute('aria-label') || '图片预览（+/-缩放，0重置）');
         window.addEventListener('mousemove', onMove);
         window.addEventListener('mouseup', onUp);
 

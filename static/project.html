@@ -1172,9 +1172,9 @@
                         <button id="cwVoiceUploadBtn" style="padding:2px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;">上传音频</button>
                         <button id="cwVoiceRemoveBtn" style="display:none;padding:2px 8px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:none;cursor:pointer;color:var(--danger,#e53e3e);">移除</button>
                         <span id="cwVoicePlayer" style="display:none;align-items:center;gap:6px;margin-left:4px;">
-                            <button id="cwVoicePlayBtn" style="width:24px;height:24px;border:1px solid var(--border);border-radius:50%;background:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;">▶</button>
+                            <button id="cwVoicePlayBtn" aria-label="播放语音" style="width:24px;height:24px;border:1px solid var(--border);border-radius:50%;background:none;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;">▶</button>
                             <span id="cwVoiceTime" style="font-size:11px;opacity:0.6;min-width:70px;">0:00 / 0:00</span>
-                            <input id="cwVoiceVolume" type="range" min="0" max="100" value="80" style="width:60px;cursor:pointer;">
+                            <input id="cwVoiceVolume" type="range" min="0" max="100" value="80" aria-label="音量" style="width:60px;cursor:pointer;">
                         </span>
                     </div>
                     <audio id="cwVoiceAudio" style="display:none;"></audio>
@@ -2105,7 +2105,7 @@
                         <div class="muted">${tr('输入原始剧情文本并让 AI 拆分角色、场景和道具。', 'Paste source story text and let AI extract characters, scenes, and props.')}</div>
                     </div>
                 </div>
-                <textarea id="scriptTextarea" class="script-textarea" placeholder="${tr('在此输入小说或剧本文本…', 'Paste novel or screenplay text here…')}">${escapeHtml(state.scriptText)}</textarea>
+                <textarea id="scriptTextarea" class="script-textarea" aria-label="剧本" placeholder="${tr('在此输入小说或剧本文本…', 'Paste novel or screenplay text here…')}">${escapeHtml(state.scriptText)}</textarea>
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                     <div id="statusLine" class="status ${state.status.kind}">${escapeHtml(state.status.text)}</div>
                     <div style="display:flex;gap:8px;align-items:center;">
@@ -2133,9 +2133,9 @@
                             ${items.length ? items.map(item => {
                                 const isEditing = editing && editing.kind === kind && editing.id === item.id;
                                 const extraFields = kind === 'characters' ? `
-                                    <input class="field" name="age" placeholder="${tr('年龄', 'Age')}" value="${escapeHtml(item.age || '')}">
-                                    <input class="field" name="gender" placeholder="${tr('性别', 'Gender')}" value="${escapeHtml(item.gender || '')}">
-                                    <input class="field" name="clothing" placeholder="${tr('服装', 'Clothing')}" value="${escapeHtml(item.clothing || '')}">
+                                    <input class="field" name="age" aria-label="年龄" placeholder="${tr('年龄', 'Age')}" value="${escapeHtml(item.age || '')}">
+                                    <input class="field" name="gender" aria-label="性别" placeholder="${tr('性别', 'Gender')}" value="${escapeHtml(item.gender || '')}">
+                                    <input class="field" name="clothing" aria-label="服装" placeholder="${tr('服装', 'Clothing')}" value="${escapeHtml(item.clothing || '')}">
                                 ` : '';
                                 return `
                                 <span class="chip">
@@ -2145,8 +2145,8 @@
                                 </span>
                                 ${isEditing ? `
                                 <form class="inline-form show" id="edit-form-${kind}-${item.id}">
-                                    <input class="field" name="name" placeholder="${tr('名称', 'Name')}" value="${escapeHtml(item.name || '')}" required>
-                                    <textarea class="field-textarea" name="description" placeholder="${tr('描述', 'Description')}">${escapeHtml(item.description || '')}</textarea>
+                                    <input class="field" name="name" aria-label="名称" placeholder="${tr('名称', 'Name')}" value="${escapeHtml(item.name || '')}" required>
+                                    <textarea class="field-textarea" name="description" aria-label="描述" placeholder="${tr('描述', 'Description')}">${escapeHtml(item.description || '')}</textarea>
                                     ${extraFields}
                                     <div style="display:flex;gap:8px;">
                                         <button class="primary-btn" type="submit">${tr('保存', 'Save')}</button>
@@ -2159,8 +2159,8 @@
                         </div>
                         <button class="mini-btn" type="button" data-show-form="${kind}">+ ${tr('添加', 'Add')}</button>
                         <form class="inline-form" id="form-${kind}">
-                            <input class="field" name="name" placeholder="${tr('名称', 'Name')}" required>
-                            <textarea class="field-textarea" name="description" placeholder="${tr('描述', 'Description')}"></textarea>
+                            <input class="field" name="name" aria-label="名称" placeholder="${tr('名称', 'Name')}" required>
+                            <textarea class="field-textarea" name="description" aria-label="描述" placeholder="${tr('描述', 'Description')}"></textarea>
                             <div style="display:flex;gap:8px;">
                                 <button class="primary-btn" type="submit">${tr('保存', 'Save')}</button>
                                 <button class="ghost-btn" type="button" data-cancel-form="${kind}">${tr('取消', 'Cancel')}</button>
@@ -2242,7 +2242,7 @@
                             💾 ${tr('保存为预设', 'Save as Preset')}
                         </button>
                         ${state.showPresetInput ? `<div id="presetInputRow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                            <input id="presetNameInput" type="text" placeholder="${tr('预设名称', 'Preset name')}" maxlength="40" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:140px;background:var(--bg);color:var(--text);">
+                            <input id="presetNameInput" type="text" aria-label="预设名称" placeholder="${tr('预设名称', 'Preset name')}" maxlength="40" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:140px;background:var(--bg);color:var(--text);">
                             <button id="confirmPresetBtn" type="button" style="padding:6px 12px;border-radius:6px;background:#2563eb;color:#fff;border:none;cursor:pointer;font-size:13px;">${tr('确认', 'Confirm')}</button>
                             <button id="cancelPresetBtn" type="button" style="padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:none;cursor:pointer;font-size:13px;">${tr('取消', 'Cancel')}</button>
                         </div>` : ''}
@@ -2458,10 +2458,10 @@
                 </div>
                 <div id="statusLine" class="status ${state.status.kind}">${escapeHtml(state.status.text)}</div>
                 <div id="addFrameForm" class="inline-form" style="border:1px solid var(--border);border-radius:14px;padding:14px;">
-                    <textarea class="field-textarea" id="newFrameAction" placeholder="${tr('动作描述', 'Action description')}" style="min-height:60px;"></textarea>
-                    <input class="field" id="newFrameDialogue" placeholder="${tr('对话（可选）', 'Dialogue (optional)')}" type="text">
-                    <input class="field" id="newFrameCamera" placeholder="${tr('镜头运动（可选）', 'Camera movement (optional)')}" type="text">
-                    <textarea class="field-textarea" id="newFramePrompt" placeholder="${tr('图片提示词（可选）', 'Image prompt (optional)')}" style="min-height:60px;"></textarea>
+                    <textarea class="field-textarea" id="newFrameAction" aria-label="动作描述" placeholder="${tr('动作描述', 'Action description')}" style="min-height:60px;"></textarea>
+                    <input class="field" id="newFrameDialogue" aria-label="对话" placeholder="${tr('对话（可选）', 'Dialogue (optional)')}" type="text">
+                    <input class="field" id="newFrameCamera" aria-label="镜头运动" placeholder="${tr('镜头运动（可选）', 'Camera movement (optional)')}" type="text">
+                    <textarea class="field-textarea" id="newFramePrompt" aria-label="画面提示词" placeholder="${tr('图片提示词（可选）', 'Image prompt (optional)')}" style="min-height:60px;"></textarea>
                     <div style="display:flex;gap:8px;">
                         <button id="saveFrameBtn" class="primary-btn" type="button">${tr('保存', 'Save')}</button>
                         <button id="cancelFrameBtn" class="ghost-btn" type="button">${tr('取消', 'Cancel')}</button>

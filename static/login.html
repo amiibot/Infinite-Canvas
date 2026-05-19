@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Impact & Bound Square - Enhanced</title>
     <style>
         body { 
@@ -19,7 +20,7 @@
             transform: translate(-50%, -40%);
             opacity: 0;
             visibility: hidden;
-            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
             z-index: 10;
             width: 280px;
             padding: 45px;
@@ -37,11 +38,13 @@
         }
         
         .label {
+            display: block;
             color: rgba(255, 255, 255, 0.3);
             font-size: 10px;
             letter-spacing: 4px;
             margin-bottom: 8px;
             text-transform: uppercase;
+            cursor: pointer;
         }
 
         .form-group {
@@ -58,6 +61,10 @@
             color: #fff;
             font-size: 14px;
             outline: none;
+        }
+        .form-group input:focus-visible {
+            border-bottom-color: #fff;
+            box-shadow: 0 1px 0 0 #fff;
         }
 
         .form-group::after {
@@ -82,7 +89,7 @@
             font-weight: 800;
             letter-spacing: 6px;
             cursor: pointer;
-            transition: all 0.4s;
+            transition: transform 0.4s, box-shadow 0.4s;
             margin-top: 10px;
         }
         
@@ -107,12 +114,12 @@
 
 <div id="loginForm">
     <div class="form-group">
-        <div class="label">Identity</div>
-        <input type="text" id="username" placeholder=" " autocomplete="off">
+        <label class="label" for="username">Identity</label>
+        <input type="text" id="username" name="username" placeholder=" " autocomplete="username">
     </div>
     <div class="form-group">
-        <div class="label">Access Code</div>
-        <input type="password" id="password" placeholder=" " autocomplete="off">
+        <label class="label" for="password">Access Code</label>
+        <input type="password" id="password" name="password" placeholder=" " autocomplete="current-password">
     </div>
     <button id="loginButton">CONNECT</button>
 </div>

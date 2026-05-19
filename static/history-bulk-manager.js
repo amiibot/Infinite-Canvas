@@ -26,7 +26,7 @@
             .history-bulk-surface.is-selecting{cursor:crosshair}
             .history-bulk-toolbar{display:flex;align-items:center;gap:10px;margin:-4px 0 18px;min-height:34px}
             .history-bulk-toolbar .bulk-spacer{flex:1}
-            .history-bulk-btn{height:32px;border-radius:999px;border:1px solid rgba(148,163,184,.28);background:rgba(255,255,255,.9);color:#475569;padding:0 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;display:inline-flex;align-items:center;gap:7px;transition:all .18s ease}
+            .history-bulk-btn{height:32px;border-radius:999px;border:1px solid rgba(148,163,184,.28);background:rgba(255,255,255,.9);color:#475569;padding:0 12px;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.12em;display:inline-flex;align-items:center;gap:7px;transition:background .18s ease,color .18s ease,border-color .18s ease}
             .history-bulk-btn:hover{background:#111827;color:#fff;border-color:#111827}
             .history-bulk-btn.danger{background:#111827;color:#fff;border-color:#111827}
             .history-bulk-btn.danger:disabled{opacity:.38;cursor:not-allowed}
@@ -112,6 +112,7 @@
             document.body.classList.toggle('history-bulk-selecting', selecting);
             selectableCards().forEach(card => {
                 card.classList.toggle('bulk-selected', selected.has(cardTs(card)));
+                card.setAttribute('tabindex', selecting ? '0' : '-1');
                 if(!card.querySelector('.bulk-check')){
                     const check = document.createElement('span');
                     check.className = 'bulk-check';
@@ -159,6 +160,14 @@
             e.stopPropagation();
             toggleCard(card);
         }, true);
+        masonry.addEventListener('keydown', e => {
+            if(!selecting) return;
+            if(e.key !== 'Enter' && e.key !== ' ') return;
+            const card = e.target.closest('.masonry-item[data-history-ts]');
+            if(!card || !masonry.contains(card)) return;
+            e.preventDefault();
+            toggleCard(card);
+        });
         function shouldIgnorePointer(e){
             return Boolean(e.target.closest('.history-bulk-toolbar,button,a,input,textarea,select'));
         }

@@ -91,7 +91,7 @@
         /* 统一组件风格 */
         .glass-btn {
             background: #111827;
-            transition: all 0.3s var(--easing);
+            transition: background .2s ease, color .2s ease, border-color .2s ease;
         }
 
         .glass-btn:hover {
@@ -107,7 +107,7 @@
         .upload-item {
             background: var(--card);
             border: 1px dashed #e2e8f0;
-            transition: all 0.4s var(--easing);
+            transition: transform .3s ease, opacity .3s ease;
         }
 
         .upload-item:hover {
@@ -141,7 +141,7 @@
             border: 1px solid #f1f5f9;
             border-radius: 24px;
             overflow: hidden;
-            transition: all 0.5s var(--easing);
+            transition: transform .4s ease, opacity .4s ease;
             position: relative;
         }
 
@@ -153,7 +153,7 @@
         .nano-input {
             background: #ffffff;
             border-radius: 16px;
-            transition: all 0.3s ease;
+            transition: border-color .2s ease, box-shadow .2s ease;
             border: 1px solid #e5e7eb;
         }
 
@@ -256,7 +256,7 @@
 
                         <div id="uploadContent" class="text-center space-y-4">
                             <div
-                                class="w-14 h-14 rounded-full border border-gray-200 bg-white flex items-center justify-center mx-auto group-hover:bg-black group-hover:text-white group-hover:border-black transition-all duration-500">
+                                class="w-14 h-14 rounded-full border border-gray-200 bg-white flex items-center justify-center mx-auto group-hover:bg-black group-hover:text-white group-hover:border-black transition-colors duration-500">
                                 <i data-lucide="arrow-up" class="w-5 h-5"></i>
                             </div>
                             <p class="text-[11px] font-bold uppercase tracking-tight" data-i18n="studio.dropImage">Drop image here</p>
@@ -292,7 +292,7 @@
                                     </div>
                                     <div class="flex items-center gap-1.5">
                                         <button onclick="resetControl('h')"
-                                            class="text-gray-300 hover:text-black transition-colors p-1" title="Reset">
+                                            class="text-gray-300 hover:text-black transition-colors p-1" title="Reset" aria-label="重置">
                                             <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
                                         </button>
                                         <div class="flex items-center bg-gray-100 rounded-md px-2">
@@ -317,7 +317,7 @@
                                     </div>
                                     <div class="flex items-center gap-1.5">
                                         <button onclick="resetControl('v')"
-                                            class="text-gray-300 hover:text-black transition-colors p-1" title="Reset">
+                                            class="text-gray-300 hover:text-black transition-colors p-1" title="Reset" aria-label="重置">
                                             <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
                                         </button>
                                         <div class="flex items-center bg-gray-100 rounded-md px-2">
@@ -342,7 +342,7 @@
                                     </div>
                                     <div class="flex items-center gap-1.5">
                                         <button onclick="resetControl('d')"
-                                            class="text-gray-300 hover:text-black transition-colors p-1" title="Reset">
+                                            class="text-gray-300 hover:text-black transition-colors p-1" title="Reset" aria-label="重置">
                                             <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
                                         </button>
                                         <div class="flex items-center bg-gray-100 rounded-md px-2">
@@ -370,23 +370,23 @@
                             <i data-lucide="text-quote" class="w-3 h-3"></i>
                             <span class="text-[10px] font-bold uppercase tracking-widest">Prompt</span>
                         </div>
-                        <textarea id="promptInput"
+                        <textarea id="promptInput" aria-label="提示词"
                             class="nano-input w-full flex-1 p-5 text-sm outline-none resize-none placeholder-gray-300"
                             placeholder="请通过右侧控制器调整，或输入提示词"></textarea>
                     </div>
 
                     <!-- Engine Switcher -->
                     <div class="mode-switcher">
-                        <div id="modeLocal" class="mode-btn active flex items-center justify-center gap-1.5"
+                        <button id="modeLocal" class="mode-btn active flex items-center justify-center gap-1.5"
                             onclick="switchEngine('local')">
                             <i data-lucide="monitor" class="w-3 h-3"></i>
                             <span>Local</span>
-                        </div>
-                        <div id="modeCloud" class="mode-btn flex items-center justify-center gap-1.5"
+                        </button>
+                        <button id="modeCloud" class="mode-btn flex items-center justify-center gap-1.5"
                             onclick="switchEngine('cloud')">
                             <i data-lucide="cloud" class="w-3 h-3"></i>
                             <span>ModelScope</span>
-                        </div>
+                        </button>
                         <div id="glider" class="mode-glider"></div>
                     </div>
 
@@ -416,7 +416,7 @@
                                     <span id="cloud-percent">0%</span>
                                 </div>
                                 <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                    <div id="cloud-progress-bar" class="bg-black h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                                    <div id="cloud-progress-bar" class="bg-black h-full rounded-full transition-[width] duration-300" style="width: 0%"></div>
                                 </div>
                             </div>
                         </div>
@@ -431,17 +431,17 @@
                                 <h2 id="generatedText" class="text-2xl font-bold leading-relaxed text-gray-900"></h2>
                             </div>
                             <button onclick="copyText()"
-                                class="px-8 py-3 bg-gray-100 hover:bg-black hover:text-white rounded-full text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2">
+                                class="px-8 py-3 bg-gray-100 hover:bg-black hover:text-white rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2">
                                 <i data-lucide="copy" class="w-3 h-3"></i><span data-i18n="studio.copy">Copy</span>
                             </button>
                         </div>
 
                         <img id="outputImg"
-                            class="hidden w-full h-full object-contain p-8 cursor-zoom-in transition-all duration-700 hover:scale-[1.02]"
+                            class="hidden w-full h-full object-contain p-8 cursor-zoom-in transition-transform duration-700 hover:scale-[1.02]"
                             onclick="zoomImage()">
 
                         <a id="downloadBtn" href="#" download
-                            class="hidden absolute bottom-8 right-8 w-14 h-14 bg-white shadow-2xl rounded-2xl flex items-center justify-center hover:bg-black hover:text-white transition-all duration-500 border border-gray-100">
+                            class="hidden absolute bottom-8 right-8 w-14 h-14 bg-white shadow-2xl rounded-2xl flex items-center justify-center hover:bg-black hover:text-white transition-colors duration-500 border border-gray-100">
                             <i data-lucide="download" class="w-5 h-5"></i>
                         </a>
                     </div>
@@ -464,7 +464,7 @@
 
     <div id="lightbox" onclick="handleOutsideClick(event)"
         class="hidden fixed inset-0 z-50 bg-white/95 backdrop-blur-3xl flex items-center justify-center p-8">
-        <button onclick="closeLightbox()"
+        <button onclick="closeLightbox()" aria-label="关闭"
             class="absolute top-10 right-10 p-2 hover:rotate-90 transition-transform duration-500">
             <i data-lucide="x" class="w-8 h-8"></i>
         </button>
@@ -477,7 +477,7 @@
                 </div>
             </div>
             <div class="mt-8">
-                <button onclick="downloadLightboxImage()"
+                <button onclick="downloadLightboxImage()" aria-label="下载"
                     class="px-10 py-4 bg-black text-white rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-3 shadow-xl">
                     <i data-lucide="save" class="w-4 h-4"></i> Save Master
                 </button>
@@ -1180,7 +1180,7 @@
             card.innerHTML = `
                 <img src="${imgUrl}" class="w-full h-full object-cover block transform group-hover:scale-105 transition-transform duration-[1.5s]">
                 ${badgeHtml}
-                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 p-6 flex flex-col justify-end pointer-events-none">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 p-6 flex flex-col justify-end pointer-events-none">
                     <p class="text-white text-[10px] font-bold uppercase tracking-widest line-clamp-2">${data.prompt || "Angle Control"}</p>
                 </div>
             `;
