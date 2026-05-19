@@ -6445,7 +6445,7 @@
                 const extraVideos = tokenResult.matchedVideoUrls.filter(url => !refVideos.includes(url));
                 refVideos = [...refVideos, ...extraVideos];
             }
-            let refAudios = tokenInventory.audios.map(a => a.url);
+            let refAudios = [...new Set(tokenInventory.audios.map(a => a.url))];
             if(tokenResult.matchedAudioUrls.length){
                 const extraAudios = tokenResult.matchedAudioUrls.filter(url => !refAudios.includes(url));
                 refAudios = [...refAudios, ...extraAudios];
@@ -8148,8 +8148,7 @@
             };
             window.onmouseup = e2 => {
                 const targetKind = isAudioOut ? 'in-audio' : isAudioIn ? 'out-audio' : (originKind === 'out' ? 'in' : 'out');
-                let targetPort = nearestPort(e2.clientX, e2.clientY, targetKind);
-                if(!targetPort && isAudioOut) targetPort = nearestPort(e2.clientX, e2.clientY, 'in');
+                const targetPort = nearestPort(e2.clientX, e2.clientY, targetKind);
                 const target = targetPort?.closest('.node');
                 if(target){
                     const targetId = target.dataset.id;
