@@ -1973,7 +1973,7 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
             if quality:
                 body["quality"] = quality
             if image_refs:
-                body["image"] = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:4]]
+                body["image"] = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:16]]
             response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
         elif image_refs:
             # 1) 先用 multipart 提交到 /images/edits（OpenAI / Comfly 风格）
@@ -1982,7 +1982,7 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
             edit_failed_status = None
             edit_failed_text = ""
             try:
-                for ref in image_refs[:4]:
+                for ref in image_refs[:16]:
                     path = output_file_from_url(ref.get("url", ""))
                     if not path:
                         continue
@@ -2012,7 +2012,7 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
             # 2) edits 失败 → 回退到 /images/generations + JSON image:[urls/base64]（grsai 风格）
             if response is None:
                 print(f"/images/edits failed ({edit_failed_status}): {edit_failed_text[:200]} → 回退到 /images/generations + image:[] JSON")
-                image_payload = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:4]]
+                image_payload = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:16]]
                 body = {
                     "model": model, "prompt": prompt, "size": size,
                     "quality": quality, "response_format": "url", "n": 1,
@@ -5113,11 +5113,35 @@ async def analyze_storyboard(pid: str):
     if len(script_text) > COMIC_TEXT_MAX_LEN:
         raise HTTPException(status_code=400, detail=f"脚本过长，最多 {COMIC_TEXT_MAX_LEN} 字符")
     provider_id = get_primary_provider_id(load_api_providers())
-    system_prompt = "You are a storyboard director. Convert a script into storyboard frames. Return JSON only."
+
+    characters = project_snapshot.get("characters", [])
+    scenes = project_snapshot.get("scenes", [])
+    props = project_snapshot.get("props", [])
+
+    entities_block = ""
+    if characters or scenes or props:
+        char_lines = "\n".join(f"  - {c.get('name', '')}" for c in characters) or "  (none)"
+        scene_lines = "\n".join(f"  - {s.get('name', '')}" for s in scenes) or "  (none)"
+        prop_lines = "\n".join(f"  - {p.get('name', '')}" for p in props) or "  (none)"
+        entities_block = (
+            "\n\n# Available entities in this project\n"
+            f"Characters:\n{char_lines}\n"
+            f"Scenes:\n{scene_lines}\n"
+            f"Props:\n{prop_lines}\n"
+            "\nFor each frame, reference these entity names in character_ref_names / scene_ref_name / prop_ref_names. "
+            "Only include entities that are VISIBLE in that frame."
+        )
+
+    system_prompt = (
+        "You are a storyboard director. Convert a script into storyboard frames. Return JSON only."
+        + entities_block
+    )
     user_prompt = (
         "Convert this script into storyboard frames. Return a JSON array with this exact structure:\n"
-        "[{\"action_description\": str, \"dialogue\": str, \"camera_movement\": str, \"image_prompt\": str}]\n"
-        "Max 20 frames. Keep each frame concise.\n\n"
+        '[{"action_description": str, "dialogue": str, "camera_movement": str, "image_prompt": str, '
+        '"character_ref_names": [str], "scene_ref_name": str, "prop_ref_names": [str]}]\n'
+        "Max 20 frames. Keep each frame concise. "
+        "character_ref_names/scene_ref_name/prop_ref_names must use the exact entity names listed above (if any).\n\n"
         f"Script:\n{script_text}"
     )
     raw_text = await call_chat_completion(
@@ -5141,6 +5165,47 @@ async def analyze_storyboard(pid: str):
     for fd in frames_data:
         if not isinstance(fd, dict):
             continue
+
+        # Resolve character_ids by name matching (exact first, then fuzzy)
+        char_ids = []
+        raw_char_refs = fd.get("character_ref_names") or []
+        if isinstance(raw_char_refs, str):
+            raw_char_refs = [raw_char_refs]
+        for ref_name in raw_char_refs:
+            if not isinstance(ref_name, str) or not ref_name:
+                continue
+            match = next((c for c in characters if c.get("name", "") == ref_name), None)
+            if not match:
+                match = next((c for c in characters if ref_name in c.get("name", "") or c.get("name", "") in ref_name), None)
+            if match and match["id"] not in char_ids:
+                char_ids.append(match["id"])
+
+        # Resolve scene_id by name matching (exact first, then fuzzy)
+        scene_id = None
+        ref_scene = fd.get("scene_ref_name") or ""
+        if isinstance(ref_scene, list):
+            ref_scene = ref_scene[0] if ref_scene else ""
+        if isinstance(ref_scene, str) and ref_scene:
+            match = next((s for s in scenes if s.get("name", "") == ref_scene), None)
+            if not match:
+                match = next((s for s in scenes if ref_scene in s.get("name", "") or s.get("name", "") in ref_scene), None)
+            if match:
+                scene_id = match["id"]
+
+        # Resolve prop_ids by name matching (exact first, then fuzzy)
+        prop_ids = []
+        raw_prop_refs = fd.get("prop_ref_names") or []
+        if isinstance(raw_prop_refs, str):
+            raw_prop_refs = [raw_prop_refs]
+        for ref_name in raw_prop_refs:
+            if not isinstance(ref_name, str) or not ref_name:
+                continue
+            match = next((p for p in props if p.get("name", "") == ref_name), None)
+            if not match:
+                match = next((p for p in props if ref_name in p.get("name", "") or p.get("name", "") in ref_name), None)
+            if match and match["id"] not in prop_ids:
+                prop_ids.append(match["id"])
+
         new_frames.append({
             "id": str(uuid.uuid4()),
             "action_description": str(fd.get("action_description") or ""),
@@ -5149,9 +5214,9 @@ async def analyze_storyboard(pid: str):
             "image_prompt": str(fd.get("image_prompt") or ""),
             "image_url": "",
             "locked": False,
-            "character_ids": [],
-            "scene_id": None,
-            "prop_ids": [],
+            "character_ids": char_ids,
+            "scene_id": scene_id,
+            "prop_ids": prop_ids,
             "created_at": time.time(),
         })
 
@@ -5165,6 +5230,65 @@ async def analyze_storyboard(pid: str):
         return projects
     atomic_update_comic_projects(_save)
     return result["project"]
+
+
+def _get_char_best_url(char):
+    """Get best reference image URL for a character: three_view > full_body > headshot."""
+    for variants_key, sid_key in [
+        ("three_view_variants", "three_view_selected_variant_id"),
+        ("variants", "selected_variant_id"),
+        ("headshot_variants", "headshot_selected_variant_id"),
+    ]:
+        sid = char.get(sid_key)
+        url = next((v["url"] for v in char.get(variants_key, []) if v["id"] == sid), None) if sid else None
+        if not url and char.get(variants_key):
+            url = char[variants_key][-1]["url"]
+        if url:
+            return url
+    return None
+
+
+def _get_asset_best_url(item):
+    """Get best reference image URL for a scene or prop."""
+    sid = item.get("selected_variant_id")
+    url = next((v["url"] for v in item.get("variants", []) if v["id"] == sid), None) if sid else None
+    if not url and item.get("variants"):
+        url = item["variants"][-1]["url"]
+    return url
+
+
+def _collect_frame_refs(project, frame):
+    """Collect reference images from frame-associated assets."""
+    refs = []
+    characters = project.get("characters", [])
+    scenes = project.get("scenes", [])
+    props = project.get("props", [])
+
+    for cid in (frame.get("character_ids") or []):
+        char = next((c for c in characters if c["id"] == cid), None)
+        if not char:
+            continue
+        url = _get_char_best_url(char)
+        if url:
+            refs.append({"url": url, "name": char.get("name", "")})
+
+    sid = frame.get("scene_id")
+    if sid:
+        scene = next((s for s in scenes if s["id"] == sid), None)
+        if scene:
+            url = _get_asset_best_url(scene)
+            if url:
+                refs.append({"url": url, "name": scene.get("name", "")})
+
+    for pid in (frame.get("prop_ids") or []):
+        prop = next((p for p in props if p["id"] == pid), None)
+        if not prop:
+            continue
+        url = _get_asset_best_url(prop)
+        if url:
+            refs.append({"url": url, "name": prop.get("name", "")})
+
+    return refs or None
 
 
 async def _bg_render_frame(task_id: str, pid: str, fid: str):
@@ -5183,7 +5307,8 @@ async def _bg_render_frame(task_id: str, pid: str, fid: str):
         prompt = f"{style_prompt}. {base_prompt}".strip(". ") if style_prompt else base_prompt
         if negative_prompt:
             prompt = f"{prompt} Avoid: {negative_prompt}"
-        image_data, _ = await generate_ai_image(prompt, "1536x1024", "auto", model, None, provider["id"])
+        ref_images = _collect_frame_refs(project_snapshot, frame_snapshot)
+        image_data, _ = await generate_ai_image(prompt, "1536x1024", "auto", model, ref_images, provider["id"])
         image_url = await save_ai_image_to_output(image_data, prefix="comic_frame_")
         result_holder = {}
         def _save(projects):
