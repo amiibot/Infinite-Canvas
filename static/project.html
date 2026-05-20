@@ -961,8 +961,13 @@
         .cw-col { flex: 1; display: flex; flex-direction: column; padding: 16px; border-right: 1px solid var(--border); overflow-y: auto; }
         .cw-col:last-child { border-right: none; }
         .cw-col-header { font-size: 13px; font-weight: 700; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; }
-        .cw-col-img { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 200px; background: var(--stage-bg, #f8fafc); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+        .cw-col-img { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 200px; background: var(--stage-bg, #f8fafc); border-radius: 12px; overflow: hidden; margin-bottom: 12px; position: relative; }
         .cw-col-img img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
+        .cw-pin-btn { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.8); background: rgba(0,0,0,0.4); color: #fff; font-size: 14px; cursor: pointer; display: none; align-items: center; justify-content: center; z-index: 5; transition: all 0.15s; }
+        .cw-pin-btn:hover { background: rgba(0,0,0,0.7); }
+        .cw-pin-btn.pinned { background: #2563eb; border-color: #2563eb; display: flex; }
+        .cw-col-img:hover .cw-pin-btn { display: flex; }
+        .cw-col-img .cw-pin-btn.pinned { display: flex; }
         .cw-col-variants { margin-bottom: 12px; display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; }
         .cw-col-prompt { min-height: 60px; font-size: 12px; font-family: monospace; border: 1px solid var(--border); border-radius: 8px; padding: 8px; resize: vertical; margin-bottom: 8px; background: var(--bg); color: var(--text); }
         .cw-upload-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 4px; opacity: 0.6; }
@@ -1707,19 +1712,25 @@
             const isLocked = !!asset.locked;
             // Full Body
             const fbUrl = selectedUrl(asset, 'character');
-            document.getElementById('cwImgFullBody').innerHTML = fbUrl ? `<img src="${escapeHtml(fbUrl)}" alt="${escapeHtml(asset.name)}">` : '<span style="font-size:48px;opacity:.3;">👤</span>';
+            document.getElementById('cwImgFullBody').innerHTML = (fbUrl ? `<img src="${escapeHtml(fbUrl)}" alt="${escapeHtml(asset.name)}">` : '<span style="font-size:48px;opacity:.3;">👤</span>') + '<button class="cw-pin-btn" data-cw-pin="character" aria-label="钉选为参考源" title="钉选为参考源">📌</button>';
             renderColVariantStrip(document.getElementById('cwVarFullBody'), asset.variants || [], asset.selected_variant_id, 'character');
             document.getElementById('cwPromptFullBody').value = asset.prompt || '';
             // Three View
             const tvUrl = selectedUrl(asset, 'character_three_view');
-            document.getElementById('cwImgThreeView').innerHTML = tvUrl ? `<img src="${escapeHtml(tvUrl)}" alt="${escapeHtml(asset.name)}">` : '<span style="font-size:48px;opacity:.3;">📐</span>';
+            document.getElementById('cwImgThreeView').innerHTML = (tvUrl ? `<img src="${escapeHtml(tvUrl)}" alt="${escapeHtml(asset.name)}">` : '<span style="font-size:48px;opacity:.3;">📐</span>') + '<button class="cw-pin-btn" data-cw-pin="character_three_view" aria-label="钉选为参考源" title="钉选为参考源">📌</button>';
             renderColVariantStrip(document.getElementById('cwVarThreeView'), asset.three_view_variants || [], asset.three_view_selected_variant_id, 'character_three_view');
             document.getElementById('cwPromptThreeView').value = asset.three_view_prompt || '';
             // Headshot
             const hsUrl = selectedUrl(asset, 'character_headshot');
-            document.getElementById('cwImgHeadshot').innerHTML = hsUrl ? `<img src="${escapeHtml(hsUrl)}" alt="${escapeHtml(asset.name)}">` : '<span style="font-size:48px;opacity:.3;">🖼️</span>';
+            document.getElementById('cwImgHeadshot').innerHTML = (hsUrl ? `<img src="${escapeHtml(hsUrl)}" alt="${escapeHtml(asset.name)}">` : '<span style="font-size:48px;opacity:.3;">🖼️</span>') + '<button class="cw-pin-btn" data-cw-pin="character_headshot" aria-label="钉选为参考源" title="钉选为参考源">📌</button>';
             renderColVariantStrip(document.getElementById('cwVarHeadshot'), asset.headshot_variants || [], asset.headshot_selected_variant_id, 'character_headshot');
             document.getElementById('cwPromptHeadshot').value = asset.headshot_prompt || '';
+            // Restore pin state after innerHTML recreation
+            if (cwPinnedRefSource) {
+                document.querySelectorAll('[data-cw-pin]').forEach(b => {
+                    b.classList.toggle('pinned', cwPinnedRefSource === b.dataset.cwPin);
+                });
+            }
             // Lock overlay: only show when manually locked
             document.querySelectorAll('.cw-col').forEach(col => {
                 let overlay = col.querySelector('.cw-lock-overlay');
@@ -1757,6 +1768,22 @@
             if (!btn) return;
             btn.parentElement.querySelectorAll('.batch-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+        });
+
+        // Char Workbench pin-as-reference buttons
+        let cwPinnedRefSource = null;
+        document.getElementById('charWorkbench').addEventListener('click', (e) => {
+            const pinBtn = e.target.closest('[data-cw-pin]');
+            if (!pinBtn) return;
+            const pinType = pinBtn.dataset.cwPin;
+            const allPins = document.querySelectorAll('[data-cw-pin]');
+            if (cwPinnedRefSource === pinType) {
+                cwPinnedRefSource = null;
+                allPins.forEach(b => b.classList.remove('pinned'));
+            } else {
+                cwPinnedRefSource = pinType;
+                allPins.forEach(b => b.classList.toggle('pinned', b.dataset.cwPin === pinType));
+            }
         });
 
         // Char Workbench upload buttons
@@ -1876,7 +1903,7 @@
                 try {
                     const { _task_id } = await api(`/api/comic/projects/${pid}/regenerate_asset`, {
                         method: 'POST',
-                        body: JSON.stringify({ asset_type: cwType, asset_id: assetId, prompt, apply_style: document.getElementById('cwApplyStyle').checked, negative_prompt: document.getElementById('cwNegativePrompt').value, batch_size: batchSize })
+                        body: JSON.stringify({ asset_type: cwType, asset_id: assetId, prompt, apply_style: document.getElementById('cwApplyStyle').checked, negative_prompt: document.getElementById('cwNegativePrompt').value, batch_size: batchSize, ref_source_type: cwPinnedRefSource || undefined })
                     });
                     if (cancelCwBtn) cancelCwBtn._taskId = _task_id;
                     await new Promise((resolve) => {

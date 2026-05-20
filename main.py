@@ -801,6 +801,7 @@ class ComicAssetRegenRequest(BaseModel):
     prompt: Optional[str] = None
     size: Optional[str] = None
     use_current_as_ref: bool = False
+    ref_source_type: Optional[str] = None  # "character" | "character_three_view" | "character_headshot" — pinned reference source
     provider_id: Optional[str] = None
 
 class ComicGenerateAssetsRequest(BaseModel):
@@ -4726,9 +4727,19 @@ async def _bg_regenerate_asset(task_id: str, pid: str, body):
             maintain = "STRICTLY MAINTAIN the SAME character appearance, face, hairstyle, skin tone, and clothing as the reference image. "
             prompt = maintain + prompt
 
-        # B1: use current selected variant as reference image if requested
+        # B0: pinned reference source — user explicitly chose which view to use as reference
         ref_images = None
-        if body.use_current_as_ref:
+        if body.ref_source_type:
+            ref_vk, ref_sk, _ = _get_variant_fields(body.ref_source_type)
+            ref_sid = item.get(ref_sk)
+            ref_url = next((v["url"] for v in item.get(ref_vk, []) if v["id"] == ref_sid), None) if ref_sid else None
+            if not ref_url and item.get(ref_vk):
+                ref_url = item[ref_vk][-1]["url"]
+            if ref_url:
+                ref_images = [{"url": ref_url, "name": item.get("name", "")}]
+
+        # B1: use current selected variant as reference image if requested
+        if ref_images is None and body.use_current_as_ref:
             sid = item.get(sk)
             ref_url = next((v["url"] for v in item.get(vk, []) if v["id"] == sid), None) if sid else None
             if not ref_url and item.get(vk):
@@ -4736,14 +4747,21 @@ async def _bg_regenerate_asset(task_id: str, pid: str, body):
             if ref_url:
                 ref_images = [{"url": ref_url, "name": item.get("name", "")}]
 
-        # B2: three_view / headshot always use full body as ref (overrides B1)
-        if asset_type in ("character_three_view", "character_headshot"):
+        # B2: three_view / headshot prefer full body as ref, fallback to uploaded from other views
+        if ref_images is None and asset_type in ("character_three_view", "character_headshot"):
             fb_sid = item.get("selected_variant_id")
             fb_url = next((v["url"] for v in item.get("variants", []) if v["id"] == fb_sid), None) if fb_sid else None
             if not fb_url and item.get("variants"):
                 fb_url = item["variants"][-1]["url"]
             if fb_url:
                 ref_images = [{"url": fb_url, "name": item.get("name", "")}]
+            else:
+                fallback_keys = ("headshot_variants",) if asset_type == "character_three_view" else ("three_view_variants",)
+                for fk in fallback_keys:
+                    uploaded = next((v for v in item.get(fk, []) if v.get("is_uploaded_source")), None)
+                    if uploaded and uploaded.get("url"):
+                        ref_images = [{"url": uploaded["url"], "name": item.get("name", "")}]
+                        break
 
         # B3: full body generation uses uploaded three_view or headshot as ref (only if no ref yet)
         if asset_type == "character" and ref_images is None:
