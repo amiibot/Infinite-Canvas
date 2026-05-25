@@ -1969,12 +1969,10 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
             if image_refs:
                 body["image_urls"] = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:14]]
             response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
-        elif is_gpt2 and not mask_refs:
+        elif is_gpt2 and not image_refs and not mask_refs:
             body = {"model": model, "prompt": prompt, "size": size}
             if quality:
                 body["quality"] = quality
-            if image_refs:
-                body["image"] = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:16]]
             response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
         elif image_refs:
             # 1) 先用 multipart 提交到 /images/edits（OpenAI / Comfly 风格）
@@ -1983,20 +1981,25 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
             edit_failed_status = None
             edit_failed_text = ""
             try:
+                image_field = "image[]" if is_gpt2 else "image"
                 for ref in image_refs[:16]:
                     path = output_file_from_url(ref.get("url", ""))
                     if not path:
                         continue
                     fh = open(path, "rb")
                     opened.append(fh)
-                    files.append(("image", (os.path.basename(path), fh, content_type_for_path(path))))
+                    files.append((image_field, (os.path.basename(path), fh, content_type_for_path(path))))
                 if mask_refs:
                     mask_path = output_file_from_url(mask_refs[0].get("url", ""))
                     if mask_path:
                         fh = open(mask_path, "rb")
                         opened.append(fh)
                         files.append(("mask", (os.path.basename(mask_path), fh, content_type_for_path(mask_path))))
-                data = {"model": model, "prompt": prompt, "size": size, "quality": quality, "response_format": "url", "n": "1"}
+                data = {"model": model, "prompt": prompt, "size": size, "n": "1"}
+                if quality:
+                    data["quality"] = quality
+                if not is_gpt2:
+                    data["response_format"] = "url"
                 try:
                     response = await client.post(edit_url, headers=api_headers(json_body=False, provider=provider), data=data, files=files)
                     if response.status_code >= 400:

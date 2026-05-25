@@ -5,11 +5,17 @@ AGENTS.md
 .playwright*/
 .playwright-cli/
 .playwright-mcp/
+.trellis/
+.agents/
+.plan.md
+.claude/settings.local.json
 __pycache__/
 output/
 data/
 screenshot/
 docs/
+assets/input/
+assets/output/
 .codex_write_test
 .claude/worktrees/
 history.json
