@@ -1,114 +1,37 @@
 # Infinite-Canvas
 Supports comfyui/API calls/modelscope calls
 
-详细教程：[https://youtu.be/1y9ShTvgC_w](https://youtu.be/r_y_9ALr7fg)
 
-由于最近很多API网址关停，我找到一个稳定的网址：
+基于大熊版本深度二开版本的 AI 工作台，专注项目级别的视频工作流。相较原始项目偏单点生成的工作方式，这个项目新增了一套“从剧本到资产到分镜”的导演式工作流，核心入口是左侧导航的“导演工坊”。同时，无限画布新增对seedacne2.0全能力支持的卡片。
 
-https://apimart.ai/register?aff=1uyAbb
+## 导演工坊模块
+
+- **工作台首页**：提供“项目 / 资产库”双标签，可新建系列或单集，并统一管理入口。
+- **系列管理**：系列页可维护剧集列表，以及系列级共享的角色、场景资产，适合做连载或长篇内容规划。
+- **项目编辑器**：单集项目页拆成 4 个阶段：`1.脚本` → `2.风格` → `3.资产` → `4.分镜`。
+- **AI 解析脚本**：可从原始剧情文本中自动提取角色、场景、道具，并写回项目数据。
+- **风格设定**：支持风格预设、AI 推荐、自定义正负提示词，以及提供商 / 模型 / 画幅比例配置。
+- **资产生成**：支持批量生成角色、场景、道具资产，并提供变体选择、收藏、锁定参考、重新生成等能力。
+- **分镜生成**：可基于脚本与已提取实体自动生成分镜，也支持手动增删、排序，并对单帧直接出图。
+- **前后端联动**：前端主要落在 `static/workspace.html`、`static/series.html`、`static/project.html`；后端主要通过 `main.py` 中 `/api/comic/*` 接口完成项目管理、LLM 解析和图片生成。
+
+## 无限画布中的 Seedance 2.0 定制卡片
 
 
+- **独立视频节点**：在无限画布里单独提供 Seedance 节点，默认使用 `Seedance-2.0`。
+- **三种参考模式**：支持 `单图`、`首尾帧`、`多图参考` 三种模式，适配不同视频生成方式。
+- **素材 token 引用**：支持把已连接的图片 / 视频 / 音频素材转成 token 插入提示词，便于在画布里做多素材引用。
+- **模式限制可视化**：会按当前模式校验图片、视频、音频可引用数量，并在卡片内直接提示超限状态。
+- **参数面板重组**：把模型、比例、分辨率、时长这些高频参数集中在一张卡片里，便于快速调参与连续出片。
+- **接入画布链路**：该卡片可以直接接入无限画布现有节点流转，与图片、视频、输出链路组合成完整工作流。
+- **实现位置**：主要前端实现位于 `static/canvas.html`，视频请求通过后端接口发出。
 
-5/13日更新：
-1. 修复了安装依赖的报错
-2. 增加了更便捷的API设置方式，现在可以全程在网页中设置，并且可以拉取模型一键添加
-3. LLM节点支持图片输入反推，可以使用modelscope的VL模型测试
-4. 增加了中英文切换
-5. 增加了自定义comfyui工作流的功能，可以自己设置需要的输入和要调整的参数，可以在无限画布的comfyui节点中调用。
-6. 增加了视频生成功能
-7. 修复了2k/4k生成报错问题
-8. 新增了生成节点可以通过output前后连接一键生成
-
-5/14日更新：
-1. 修复mac的一些bug
-2. modelscope支持lora调用
-3. 支持OpenAI协议和异步协议（生成失败不扣费）
-
-5/15日更新：
-1. 增加了循环组件和计数功能，可以将节点循环/并发运行N次，同时有提示词计数功能，可以设置提示词为：运行第二张卖点图。
-用法可以是：使用Gemini生成产品10个卖点提示词。用循环节点，增加提示词：运行第X张卖点图，输入给API节点，调用GPT生成，就可以一次性并发生成10个卖点图。
-2. 增加协议的验证按键，可以方便的验证自己的API平台是什么协议
-3. 修复了LLM节点的一些bug
-4. 上传了精简版的python，运行“安装依赖.bat”，完成之后，运行"run.bat"
-
-5/18日更新：
-1. 修复了视频生成bug
-2. 增加了画笔编辑
-3. 修复了ccomfyui的并发bug
-   
 -----
 
-Detailed tutorial: [https://youtu.be/1y9ShTvgC_w](https://youtu.be/r_y_9ALr7fg)
-
-Due to the recent shutdown of many API websites, I found a stable one:
-
-https://apimart.ai/register?aff=1uyAbb
-
-[Discount code (daxiong): 10% off your first top-up, invoice available.]
-
-
-May 13th Update:
-
-1. Fixed dependency installation errors.
-
-2. Added a more convenient API setup method; settings can now be configured entirely through the webpage, and models can be added with a single click.
-
-3. LLM nodes support image input for reverse engineering; VL models from ModelScope can be used for testing.
-
-4. Added Chinese/English switching functionality.
-
-5. Added the ability to customize ComfyUI workflows; users can set their own inputs and adjust parameters, and these workflows can be invoked within ComfyUI nodes on an infinite canvas.
-
-6. Added video generation functionality.
-
-7. Fixed 2K/4K generation error issues.
-
-8. Added the ability to generate videos with a single click by connecting output nodes before and after.
-
-May 14th Update:
-
-1. Fixed some bugs on Mac.
-
-2. ModelScope supports LoRa calls.
-
-3. Supports OpenAI protocol and asynchronous protocol (no charge for generation failures).
-
-May 15th Update:
-
-1. Added a loop component and counting function, allowing nodes to run concurrently N times. It also includes a prompt word counting function, where the prompt word can be set to: "Run the second selling point image."
-
-Usage: Use Gemini to generate 10 selling point prompt words for a product. Use the loop node, add the prompt word: "Run the Xth selling point image," input it to the API node, call GPT to generate, and you can generate 10 selling point images concurrently at once.
-
-2. Added a protocol verification button for easy verification of your API platform's protocol.
-
-3. Fixed some bugs in the LLM node.
-
-4. Uploaded a simplified version of Python. Run "安装依赖.bat", and then run "run.bat".
-   
-
-May 18th Update:
-
-1. Fixed a video generation bug.
-
-2. Added brush editing.
-
-3. Fixed a concurrency bug in ccomfyui.
-
-
-
-<img width="1696" height="1350" alt="b68e144c5b04a322bfd035da4d89aba3" src="https://github.com/user-attachments/assets/0a6090fb-a8dd-4c3d-adee-b1f9233a2d91" />
-
-   
-<img width="1525" height="1473" alt="image" src="https://github.com/user-attachments/assets/6f61fcf9-746c-425b-9e36-cfc8d252da7c" />
-
-   <img width="1261" height="864" alt="image" src="https://github.com/user-attachments/assets/57f3e230-3134-488f-8179-d97e7d15383a" />
-<img width="1530" height="858" alt="image" src="https://github.com/user-attachments/assets/9990e42d-22d5-4a10-a1e1-ad35a634edd2" />
-
-<img width="1735" height="1400" alt="image" src="https://github.com/user-attachments/assets/d8328ff8-bbe0-4f1c-9ffa-7b56e8a1a51d" />
-<img width="2258" height="969" alt="image" src="https://github.com/user-attachments/assets/4a752d99-885d-4ba9-8b86-91b495786b5c" />
-
-
-<img width="1531" height="1374" alt="image" src="https://github.com/user-attachments/assets/0af79e38-0955-4740-9e65-5c9bb057f58c" />
-
-<img width="2196" height="1040" alt="image" src="https://github.com/user-attachments/assets/6d823668-cde2-4836-8332-1858efe5f520" />
-<img width="2214" height="771" alt="image" src="https://github.com/user-attachments/assets/52e10958-753f-45ba-a50e-3bbec27be436" />
+![导演工坊](assets/director0.png)
+![导演工坊](assets/director1.png)
+![导演工坊](assets/director2.png)
+![导演工坊](assets/director3.png)
+![seedance2](assets/canvas0.png)
+![seedance2](assets/canvas1.png)
+![seedance2](assets/canvas2.png)
