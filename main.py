@@ -1552,6 +1552,27 @@ def convert_output_to_jpg(url, quality=88):
         print(f"转换 JPG 失败: {e}")
         return url
 
+def data_url_file_part(value, fallback_name="reference.png"):
+    if not isinstance(value, str) or not value.startswith("data:image/") or ";base64," not in value:
+        return None
+    header, encoded = value.split(";base64,", 1)
+    mime = header[5:].split(";", 1)[0] or "image/png"
+    ext = {
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/webp": ".webp",
+        "image/png": ".png",
+    }.get(mime.lower(), ".png")
+    name = os.path.basename(fallback_name or "reference")
+    if not os.path.splitext(name)[1]:
+        name = f"{name}{ext}"
+    try:
+        return (name, BytesIO(base64.b64decode(encoded)), mime)
+    except Exception as e:
+        print(f"data URL reference decode failed: {e}")
+        return None
+
+
 def reference_to_data_url(ref, max_size=None):
     """把本地输出文件转为 data URL（base64）。max_size 限制最长边像素，避免 payload 过大。"""
     path = output_file_from_url(ref.get("url", ""))
@@ -1969,10 +1990,12 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
             if image_refs:
                 body["image_urls"] = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:14]]
             response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
-        elif is_gpt2 and not image_refs and not mask_refs:
+        elif is_gpt2 and not mask_refs:
             body = {"model": model, "prompt": prompt, "size": size}
             if quality:
                 body["quality"] = quality
+            if image_refs:
+                body["image"] = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:16]]
             response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
         elif image_refs:
             # 1) 先用 multipart 提交到 /images/edits（OpenAI / Comfly 风格）
@@ -1981,14 +2004,19 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
             edit_failed_status = None
             edit_failed_text = ""
             try:
-                image_field = "image[]" if is_gpt2 else "image"
+                image_field = "image"
                 for ref in image_refs[:16]:
-                    path = output_file_from_url(ref.get("url", ""))
-                    if not path:
+                    ref_url = ref.get("url", "")
+                    path = output_file_from_url(ref_url)
+                    if path:
+                        fh = open(path, "rb")
+                        opened.append(fh)
+                        files.append((image_field, (os.path.basename(path), fh, content_type_for_path(path))))
                         continue
-                    fh = open(path, "rb")
-                    opened.append(fh)
-                    files.append((image_field, (os.path.basename(path), fh, content_type_for_path(path))))
+                    data_part = data_url_file_part(ref_url, ref.get("name") or "reference.png")
+                    if data_part:
+                        opened.append(data_part[1])
+                        files.append((image_field, data_part))
                 if mask_refs:
                     mask_path = output_file_from_url(mask_refs[0].get("url", ""))
                     if mask_path:
@@ -2001,14 +2029,18 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
                 if not is_gpt2:
                     data["response_format"] = "url"
                 try:
-                    response = await client.post(edit_url, headers=api_headers(json_body=False, provider=provider), data=data, files=files)
-                    if response.status_code >= 400:
-                        edit_failed_status = response.status_code
-                        edit_failed_text = response.text[:500]
-                        response = None
+                    if not files:
+                        edit_failed_status = 0
+                        edit_failed_text = "no local/data-url reference files for multipart edits"
+                    else:
+                        response = await client.post(edit_url, headers=api_headers(json_body=False, provider=provider), data=data, files=files)
+                        if response.status_code >= 400:
+                            edit_failed_status = response.status_code
+                            edit_failed_text = response.text[:500]
+                            response = None
                 except httpx.HTTPError as e:
                     edit_failed_status = -1
-                    edit_failed_text = str(e)
+                    edit_failed_text = f"{type(e).__name__}: {str(e) or repr(e)}"
                     response = None
             finally:
                 for fh in opened:
@@ -2019,9 +2051,11 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
                 image_payload = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:16]]
                 body = {
                     "model": model, "prompt": prompt, "size": size,
-                    "quality": quality, "response_format": "url", "n": 1,
+                    "quality": quality, "n": 1,
                     "image": image_payload,
                 }
+                if not is_gpt2:
+                    body["response_format"] = "url"
                 response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
         else:
             response = await client.post(
@@ -4801,7 +4835,11 @@ async def _bg_regenerate_asset(task_id: str, pid: str, body):
     except asyncio.CancelledError:
         _update_task(task_id, status="cancelled")
     except Exception as e:
-        _update_task(task_id, status="failed", error=str(e))
+        if isinstance(e, HTTPException):
+            error_detail = e.detail
+        else:
+            error_detail = str(e) or repr(e)
+        _update_task(task_id, status="failed", error=error_detail)
 
 @app.post("/api/comic/projects/{pid}/regenerate_asset")
 async def regenerate_comic_asset(pid: str, body: ComicAssetRegenRequest):

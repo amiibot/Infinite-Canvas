@@ -1695,7 +1695,7 @@
         }
 
         function renderColVariantStrip(stripEl, variants, selectedId, assetType) {
-            if (!variants || variants.length <= 1) { stripEl.innerHTML = ''; return; }
+            if (!variants || variants.length < 1) { stripEl.innerHTML = ''; return; }
             stripEl.innerHTML = variants.map(v => `
                 <div class="variant-thumb${v.id === selectedId ? ' selected' : ''}" data-vid="${escapeHtml(v.id)}" data-cw-asset-type="${assetType}">
                     <img src="${escapeHtml(v.url)}" alt="">
