@@ -49,7 +49,7 @@
             -webkit-font-smoothing: antialiased;
         }
         .app {
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
@@ -148,7 +148,7 @@
             color: #0f172a;
         }
         .main {
-            flex: 1;
+            flex: 1 0 auto;
             min-height: 0;
             display: flex;
             padding: 20px;
@@ -2064,13 +2064,42 @@
             }
         }
 
+        function unwrapSoftLineBreaks(text) {
+            const normalized = String(text || '').replace(/\r\n?/g, '\n');
+            const lines = normalized.split('\n');
+            const nonEmpty = lines.filter(line => line.trim());
+            if (nonEmpty.length < 3) return normalized;
+            const wrappedLines = nonEmpty.filter(line => {
+                const len = Array.from(line.trim()).length;
+                return len >= 18 && len <= 45;
+            });
+            if (wrappedLines.length / nonEmpty.length < 0.6) return normalized;
+            const paragraphs = [];
+            let current = '';
+            lines.forEach((line) => {
+                if (!line.trim()) {
+                    if (current) { paragraphs.push(current); current = ''; }
+                    return;
+                }
+                const startsParagraph = /^[\s　]{2,}/.test(line);
+                if (startsParagraph && current) {
+                    paragraphs.push(current);
+                    current = line.trimEnd();
+                    return;
+                }
+                current += current ? line.trim() : line.trimEnd();
+            });
+            if (current) paragraphs.push(current);
+            return paragraphs.join('\n\n');
+        }
+
         function hydrateProject(project) {
             project.characters = Array.isArray(project.characters) ? project.characters : [];
             project.scenes = Array.isArray(project.scenes) ? project.scenes : [];
             project.props = Array.isArray(project.props) ? project.props : [];
             project.art_direction = project.art_direction || {};
             state.project = project;
-            state.scriptText = project.original_text || '';
+            state.scriptText = unwrapSoftLineBreaks(project.original_text || '');
             state.draftTitle = project.title || tr('未命名项目', 'Untitled Project');
             const styleName = project.art_direction.style_name || '';
             const matchedPreset = presets.find(item => item.id === styleName || item.name === styleName);
