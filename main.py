@@ -781,6 +781,27 @@ class ComicArtDirectionSave(BaseModel):
     provider_id: str = ""
     aspect_ratio: dict = {}
 
+class ComicProjectPromptConfigSave(BaseModel):
+    system_prompts: dict = {}
+
+PROJECT_SYSTEM_PROMPT_KEYS = (
+    "story_parse",
+    "art_direction_analyze",
+    "sync_character_description",
+    "sync_scene_description",
+    "sync_prop_description",
+    "storyboard_analyze",
+)
+
+DEFAULT_PROJECT_SYSTEM_PROMPTS = {
+    "story_parse": "You are a story analyzer. Extract characters, scenes, and props from the text. Return JSON only.",
+    "art_direction_analyze": "你是专业的电影美术指导和视觉风格顾问。根据剧本内容推荐3种截然不同的视觉风格。\n每种风格包含：name（英文，简洁）、description（中文，1-2句）、reason（中文，≤50字，说明为何适合该剧本）、positive_prompt（英文SD提示词，只描述光影/色调/材质/氛围/艺术媒介，≤50词，禁止描述具体人物/场景/物品）、negative_prompt（英文，≤30词）。\n返回严格JSON：{\"recommendations\": [{\"name\":...,\"description\":...,\"reason\":...,\"positive_prompt\":...,\"negative_prompt\":...}]}\n只返回3个推荐，不多不少。不要包含任何解释性文字。",
+    "sync_character_description": "You are a visual novel character designer. Write concise visual descriptions.",
+    "sync_scene_description": "You are a visual novel background artist. Write concise scene descriptions.",
+    "sync_prop_description": "You are a visual novel prop designer. Write concise prop descriptions.",
+    "storyboard_analyze": "You are a storyboard director. Convert a script into storyboard frames. Return JSON only.",
+}
+
 class AssetDescriptionUpdate(BaseModel):
     description: Optional[str] = None
     prompt: Optional[str] = None
@@ -871,6 +892,31 @@ def _migrate_project_assets(project: dict) -> None:
     for prop in project.get("props", []):
         _migrate_asset_variants(prop, ["image_url"])
         prop.setdefault("locked", False)
+
+def normalize_project_prompt_config(raw) -> dict:
+    raw = raw if isinstance(raw, dict) else {}
+    system_prompts = raw.get("system_prompts") if isinstance(raw.get("system_prompts"), dict) else {}
+    return {
+        "system_prompts": {
+            key: str(system_prompts.get(key) or "")
+            for key in PROJECT_SYSTEM_PROMPT_KEYS
+        }
+    }
+
+
+def get_project_system_prompt(project: dict, key: str) -> str:
+    prompt_config = normalize_project_prompt_config(project.get("prompt_config"))
+    override = prompt_config["system_prompts"].get(key, "").strip()
+    return override or DEFAULT_PROJECT_SYSTEM_PROMPTS[key]
+
+
+def build_project_prompt_config_response(project: dict) -> dict:
+    prompt_config = normalize_project_prompt_config(project.get("prompt_config"))
+    return {
+        "system_prompts": prompt_config["system_prompts"],
+        "default_system_prompts": DEFAULT_PROJECT_SYSTEM_PROMPTS,
+    }
+
 
 def _append_variant(item: dict, url: str, is_uploaded_source: bool = False,
                     variant_key: str = "variants", selected_key: str = "selected_variant_id") -> dict:
@@ -4048,6 +4094,7 @@ def get_comic_project_or_404(pid: str):
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     _migrate_project_assets(project)
+    project["prompt_config"] = normalize_project_prompt_config(project.get("prompt_config"))
     return projects, project
 
 def get_comic_frame_or_404(project, fid):
@@ -4143,6 +4190,7 @@ async def create_comic_project(body: ComicProjectCreate):
             "style_negative_prompt": "",
             "style_name": ""
         },
+        "prompt_config": normalize_project_prompt_config(None),
         "frames": []
     }
     def _add(projects):
@@ -4236,12 +4284,13 @@ async def update_asset_description(pid: str, asset_type: str, asset_id: str, bod
 
 @app.post("/api/comic/projects/{pid}/parse")
 async def parse_comic_project(pid: str, body: ComicParseRequest):
+    _, project_snapshot = get_comic_project_or_404(pid)
     # Validate text length before acquiring lock
     text = (body.text or "").strip()
     if len(text) > COMIC_TEXT_MAX_LEN:
         raise HTTPException(status_code=400, detail=f"文本过长，最多 {COMIC_TEXT_MAX_LEN} 字符")
     provider_id = get_primary_provider_id(load_api_providers())
-    system_prompt = "You are a story analyzer. Extract characters, scenes, and props from the text. Return JSON only."
+    system_prompt = get_project_system_prompt(project_snapshot, "story_parse")
     user_prompt = (
         "Extract from this text and return JSON with this exact structure:\n"
         "{\"characters\": [{\"name\": str, \"description\": str, \"age\": str, \"gender\": str, \"clothing\": str}],\n"
@@ -4390,14 +4439,7 @@ async def analyze_comic_art_direction(pid: str):
     script_text = (project.get("original_text") or "").strip()
     if not script_text:
         raise HTTPException(status_code=400, detail="剧本内容为空，请先在 Step1 输入剧本")
-    system_prompt = (
-        "你是专业的电影美术指导和视觉风格顾问。根据剧本内容推荐3种截然不同的视觉风格。\n"
-        "每种风格包含：name（英文，简洁）、description（中文，1-2句）、reason（中文，≤50字，说明为何适合该剧本）、"
-        "positive_prompt（英文SD提示词，只描述光影/色调/材质/氛围/艺术媒介，≤50词，禁止描述具体人物/场景/物品）、"
-        "negative_prompt（英文，≤30词）。\n"
-        "返回严格JSON：{\"recommendations\": [{\"name\":...,\"description\":...,\"reason\":...,\"positive_prompt\":...,\"negative_prompt\":...}]}\n"
-        "只返回3个推荐，不多不少。不要包含任何解释性文字。"
-    )
+    system_prompt = get_project_system_prompt(project, "art_direction_analyze")
     user_prompt = f"剧本内容：\n\n{script_text[:2000]}"
     raw = await call_chat_completion([
         {"role": "system", "content": system_prompt},
@@ -4440,6 +4482,25 @@ async def save_comic_art_direction(pid: str, body: ComicArtDirectionSave):
     atomic_update_comic_projects(_save)
     return result["project"]
 
+@app.get("/api/comic/projects/{pid}/prompt_config")
+async def get_comic_project_prompt_config(pid: str):
+    _, project = get_comic_project_or_404(pid)
+    return build_project_prompt_config_response(project)
+
+@app.post("/api/comic/projects/{pid}/prompt_config")
+async def save_comic_project_prompt_config(pid: str, body: ComicProjectPromptConfigSave):
+    result = {}
+    normalized = normalize_project_prompt_config({"system_prompts": body.system_prompts})
+    def _save(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project["prompt_config"] = normalized
+        result["payload"] = build_project_prompt_config_response(project)
+        return projects
+    atomic_update_comic_projects(_save)
+    return result["payload"]
+
 async def _bg_sync_descriptions(task_id: str, pid: str, body):
     try:
         _update_task(task_id, status="running")
@@ -4472,7 +4533,7 @@ async def _bg_sync_descriptions(task_id: str, pid: str, body):
             try:
                 res = await call_chat_completion(
                     messages=[
-                        {"role": "system", "content": "You are a visual novel character designer. Write concise visual descriptions."},
+                        {"role": "system", "content": get_project_system_prompt(project_snapshot, "sync_character_description")},
                         {"role": "user", "content": (
                             f"Character name: {name}\n"
                             f"Age: {age}, Gender: {gender}, Clothing: {clothing}\n"
@@ -4495,7 +4556,7 @@ async def _bg_sync_descriptions(task_id: str, pid: str, body):
             try:
                 res = await call_chat_completion(
                     messages=[
-                        {"role": "system", "content": "You are a visual novel background artist. Write concise scene descriptions."},
+                        {"role": "system", "content": get_project_system_prompt(project_snapshot, "sync_scene_description")},
                         {"role": "user", "content": (
                             f"Scene name: {name}\n"
                             f"Story context: {original_text}\n\n"
@@ -4517,7 +4578,7 @@ async def _bg_sync_descriptions(task_id: str, pid: str, body):
             try:
                 res = await call_chat_completion(
                     messages=[
-                        {"role": "system", "content": "You are a visual novel prop designer. Write concise prop descriptions."},
+                        {"role": "system", "content": get_project_system_prompt(project_snapshot, "sync_prop_description")},
                         {"role": "user", "content": (
                             f"Prop name: {name}\n"
                             f"Story context: {original_text}\n\n"
@@ -5191,10 +5252,7 @@ async def analyze_storyboard(pid: str):
             "Only include entities that are VISIBLE in that frame."
         )
 
-    system_prompt = (
-        "You are a storyboard director. Convert a script into storyboard frames. Return JSON only."
-        + entities_block
-    )
+    system_prompt = get_project_system_prompt(project_snapshot, "storyboard_analyze") + entities_block
     user_prompt = (
         "Convert this script into storyboard frames. Return a JSON array with this exact structure:\n"
         '[{"action_description": str, "dialogue": str, "camera_movement": str, "image_prompt": str, '

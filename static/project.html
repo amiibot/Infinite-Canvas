@@ -1248,7 +1248,14 @@
             modalDescOpen: false,
             modalCharType: 'character',
             modalBatchSize: 1,
-            editingEntity: null
+            editingEntity: null,
+            projectPromptModalOpen: false,
+            loadingProjectPrompts: false,
+            savingProjectPrompts: false,
+            projectPromptConfigLoaded: false,
+            projectSystemPrompts: {},
+            projectSystemPromptDrafts: {},
+            projectSystemPromptDefaults: {}
         };
 
         const presets = [
@@ -1267,6 +1274,15 @@
             { id: 2, label: () => tr('2.风格', '2.Style') },
             { id: 3, label: () => tr('3.资产', '3.Assets') },
             { id: 4, label: () => tr('4.分镜', '4.Storyboard') },
+        ];
+
+        const projectSystemPromptKeys = [
+            'story_parse',
+            'art_direction_analyze',
+            'sync_character_description',
+            'sync_scene_description',
+            'sync_prop_description',
+            'storyboard_analyze',
         ];
 
         const contentPanel = document.getElementById('contentPanel');
@@ -2093,6 +2109,23 @@
             return paragraphs.join('\n\n');
         }
 
+        function emptyProjectPromptMap() {
+            return Object.fromEntries(projectSystemPromptKeys.map((key) => [key, '']));
+        }
+
+        function normalizeProjectPromptMap(raw) {
+            const base = emptyProjectPromptMap();
+            const input = raw && typeof raw === 'object' ? raw : {};
+            projectSystemPromptKeys.forEach((key) => {
+                base[key] = String(input[key] || '');
+            });
+            return base;
+        }
+
+        function getEffectiveProjectPromptDraft(key) {
+            return state.projectSystemPromptDrafts[key] || state.projectSystemPromptDefaults[key] || '';
+        }
+
         function hydrateProject(project) {
             project.characters = Array.isArray(project.characters) ? project.characters : [];
             project.scenes = Array.isArray(project.scenes) ? project.scenes : [];
@@ -2108,6 +2141,9 @@
             state.customNegativePrompt = project.art_direction.style_negative_prompt || '';
             state.selectedImageModel = project.art_direction.image_model || '';
             state.selectedProviderId = project.art_direction.provider_id || '';
+            if (project.prompt_config?.system_prompts) {
+                state.projectSystemPrompts = normalizeProjectPromptMap(project.prompt_config.system_prompts);
+            }
             state.aspectRatio = project.art_direction.aspect_ratio && Object.keys(project.art_direction.aspect_ratio).length > 0
                 ? project.art_direction.aspect_ratio
                 : { character: '1:1', scene: '16:9', prop: '1:1' };
@@ -2238,6 +2274,64 @@
             ].join('');
         }
 
+        function projectPromptSections() {
+            return [
+                { title: tr('脚本解析', 'Story Parse'), items: [{ key: 'story_parse', label: tr('脚本解析 Prompt', 'Story Parse Prompt') }] },
+                { title: tr('风格推荐', 'Style Analysis'), items: [{ key: 'art_direction_analyze', label: tr('风格推荐 Prompt', 'Style Analysis Prompt') }] },
+                { title: tr('描述同步', 'Description Sync'), items: [
+                    { key: 'sync_character_description', label: tr('角色描述 Prompt', 'Character Description Prompt') },
+                    { key: 'sync_scene_description', label: tr('场景描述 Prompt', 'Scene Description Prompt') },
+                    { key: 'sync_prop_description', label: tr('道具描述 Prompt', 'Prop Description Prompt') },
+                ] },
+                { title: tr('分镜分析', 'Storyboard Analysis'), items: [{ key: 'storyboard_analyze', label: tr('分镜分析 Prompt', 'Storyboard Analysis Prompt') }] },
+            ];
+        }
+
+        function renderProjectPromptModal() {
+            if (!state.projectPromptModalOpen) return '';
+            const body = state.loadingProjectPrompts
+                ? `<div style="padding:24px;text-align:center;color:var(--muted);">${tr('加载项目级 Prompt 中…', 'Loading project prompts…')}</div>`
+                : projectPromptSections().map((section) => `
+                    <section style="border:1px solid var(--border);border-radius:14px;padding:14px;background:rgba(0,0,0,.02);display:flex;flex-direction:column;gap:12px;">
+                        <div class="section-title" style="margin:0;font-size:13px;">${section.title}</div>
+                        ${section.items.map((item) => {
+                            const effective = getEffectiveProjectPromptDraft(item.key);
+                            const usingDefault = effective.trim() === (state.projectSystemPromptDefaults[item.key] || '').trim();
+                            return `
+                                <div style="display:flex;flex-direction:column;gap:8px;">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+                                        <label class="asset-modal-desc-label" for="prompt-${item.key}" style="margin:0;">${item.label}</label>
+                                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                            <span class="badge">${usingDefault ? tr('当前使用默认', 'Using default') : tr('已项目覆盖', 'Project override')}</span>
+                                            <button type="button" class="ghost-btn" data-prompt-reset="${item.key}" style="height:30px;font-size:12px;">${tr('恢复默认', 'Reset to Default')}</button>
+                                        </div>
+                                    </div>
+                                    <textarea id="prompt-${item.key}" class="asset-modal-desc-textarea" data-prompt-key="${item.key}" style="min-height:128px;font-family:monospace;font-size:12px;">${escapeHtml(effective)}</textarea>
+                                </div>
+                            `;
+                        }).join('')}
+                    </section>
+                `).join('');
+            return `
+                <div id="projectPromptModal" class="asset-modal-overlay">
+                    <div class="asset-modal" style="max-width:1120px;max-height:90vh;">
+                        <div class="asset-modal-right" style="width:100%;">
+                            <div class="asset-modal-header">
+                                <span class="badge">Step2</span>
+                                <h2 class="asset-modal-title">${tr('项目级 Prompt', 'Project Prompt')}</h2>
+                                <button class="asset-modal-close" id="closeProjectPromptModal" aria-label="${tr('关闭', 'Close')}">×</button>
+                            </div>
+                            <div class="asset-modal-body"><div style="padding:12px 14px;border:1px solid rgba(245,158,11,.35);background:rgba(245,158,11,.08);border-radius:12px;font-size:13px;line-height:1.6;color:var(--text);">${tr('一般保持默认即可，仅供高阶用户自定义。这里的修改只影响脚本解析、风格推荐、描述同步和分镜分析，不影响 Step3 资产生成 Prompt。', 'Defaults are recommended. These settings are for advanced users only and affect analysis/sync/storyboard prompts, not Step3 asset generation prompts.')}</div>${body}</div>
+                            <div class="asset-modal-footer" style="justify-content:flex-end;">
+                                <button class="ghost-btn" id="closeProjectPromptModalFooter" style="height:38px;">${tr('取消', 'Cancel')}</button>
+                                <button class="primary-btn" id="saveProjectPromptBtn" style="height:38px;" ${state.loadingProjectPrompts || state.savingProjectPrompts ? 'disabled' : ''}>${state.savingProjectPrompts ? `<span class="spinner"></span> ${tr('保存中…', 'Saving…')}` : tr('保存', 'Save')}</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
         function renderStep2() {
             sidePanel.classList.add('hidden');
             const customPresets = JSON.parse(localStorage.getItem('luna_custom_presets') || '[]');
@@ -2299,6 +2393,9 @@
                         <button id="savePresetBtn" type="button" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:14px;" ${state.showPresetInput ? 'disabled' : ''}>
                             💾 ${tr('保存为预设', 'Save as Preset')}
                         </button>
+                        <button id="openProjectPromptBtn" type="button" style="padding:8px 16px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:14px;">
+                            ⚙️ ${tr('项目级 Prompt', 'Project Prompt')}
+                        </button>
                         ${state.showPresetInput ? `<div id="presetInputRow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                             <input id="presetNameInput" type="text" aria-label="预设名称" placeholder="${tr('预设名称', 'Preset name')}" maxlength="40" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;min-width:140px;background:var(--bg);color:var(--text);">
                             <button id="confirmPresetBtn" type="button" style="padding:6px 12px;border-radius:6px;background:#2563eb;color:#fff;border:none;cursor:pointer;font-size:13px;">${tr('确认', 'Confirm')}</button>
@@ -2307,6 +2404,7 @@
                     </div>
                     <div id="statusLine" class="status ${state.status.kind}">${escapeHtml(state.status.text)}</div>
                 </div>
+                ${renderProjectPromptModal()}
             `;
         }
 
@@ -2770,6 +2868,35 @@
             render();
         }
 
+        async function loadProjectPromptConfig() {
+            state.loadingProjectPrompts = true;
+            render();
+            try {
+                const payload = await api(`/api/comic/projects/${projectId}/prompt_config`);
+                state.projectSystemPrompts = normalizeProjectPromptMap(payload.system_prompts);
+                state.projectSystemPromptDefaults = normalizeProjectPromptMap(payload.default_system_prompts);
+                state.projectSystemPromptDrafts = Object.fromEntries(projectSystemPromptKeys.map((key) => [
+                    key,
+                    state.projectSystemPrompts[key] || state.projectSystemPromptDefaults[key] || ''
+                ]));
+                state.projectPromptConfigLoaded = true;
+            } catch (error) {
+                state.projectPromptModalOpen = false;
+                setStatus(error.message || tr('加载项目级 Prompt 失败', 'Failed to load project prompts'), 'error');
+            } finally {
+                state.loadingProjectPrompts = false;
+                render();
+            }
+        }
+
+        async function openProjectPromptModal() {
+            state.projectPromptModalOpen = true;
+            render();
+            if (!state.projectPromptConfigLoaded) {
+                await loadProjectPromptConfig();
+            }
+        }
+
         async function handleApplyStyle() {
             const preset = presets.find(item => item.id === state.presetId);
             const stylePromptField = document.getElementById('stylePrompt');
@@ -2830,6 +2957,33 @@
                 setStatus(error.message || tr('AI 推荐失败', 'AI recommendation failed'), 'error');
             } finally {
                 state.analyzingStyle = false;
+                render();
+            }
+        }
+
+        async function handleSaveProjectPromptConfig() {
+            state.savingProjectPrompts = true;
+            render();
+            try {
+                const systemPrompts = Object.fromEntries(projectSystemPromptKeys.map((key) => {
+                    const draft = String(state.projectSystemPromptDrafts[key] || '').trim();
+                    const fallback = String(state.projectSystemPromptDefaults[key] || '').trim();
+                    return [key, draft === fallback ? '' : draft];
+                }));
+                const payload = await api(`/api/comic/projects/${projectId}/prompt_config`, {
+                    method: 'POST',
+                    body: JSON.stringify({ system_prompts: systemPrompts })
+                });
+                state.projectSystemPrompts = normalizeProjectPromptMap(payload.system_prompts);
+                state.projectSystemPromptDefaults = normalizeProjectPromptMap(payload.default_system_prompts);
+                state.projectSystemPromptDrafts = Object.fromEntries(projectSystemPromptKeys.map((key) => [key, state.projectSystemPrompts[key] || state.projectSystemPromptDefaults[key] || '']));
+                if (state.project) state.project.prompt_config = { system_prompts: { ...state.projectSystemPrompts } };
+                state.projectPromptModalOpen = false;
+                setStatus(tr('项目级 Prompt 已保存。', 'Project prompts saved.'), 'success');
+            } catch (error) {
+                setStatus(error.message || tr('保存项目级 Prompt 失败', 'Failed to save project prompts'), 'error');
+            } finally {
+                state.savingProjectPrompts = false;
                 render();
             }
         }
@@ -3074,6 +3228,7 @@
             const tab = event.target.closest('[data-step]');
             if (!tab) return;
             state.activeStep = Number(tab.dataset.step);
+            state.projectPromptModalOpen = false;
             setStatus('');
             render();
         });
@@ -3161,6 +3316,26 @@
             }
             if (event.target.closest('#savePresetBtn')) {
                 handleSavePreset();
+                return;
+            }
+            if (event.target.closest('#openProjectPromptBtn')) {
+                openProjectPromptModal();
+                return;
+            }
+            if (event.target.closest('#closeProjectPromptModal') || event.target.closest('#closeProjectPromptModalFooter') || event.target.id === 'projectPromptModal') {
+                state.projectPromptModalOpen = false;
+                render();
+                return;
+            }
+            if (event.target.closest('#saveProjectPromptBtn')) {
+                handleSaveProjectPromptConfig();
+                return;
+            }
+            const promptResetBtn = event.target.closest('[data-prompt-reset]');
+            if (promptResetBtn) {
+                const key = promptResetBtn.dataset.promptReset;
+                state.projectSystemPromptDrafts[key] = state.projectSystemPromptDefaults[key] || '';
+                render();
                 return;
             }
             if (event.target.closest('#confirmPresetBtn')) {
@@ -3272,6 +3447,9 @@
                     closeLightbox();
                 } else if (!assetModal.classList.contains('hidden')) {
                     closeAssetModal();
+                } else if (state.projectPromptModalOpen) {
+                    state.projectPromptModalOpen = false;
+                    render();
                 } else if (state.showPresetInput) {
                     state.showPresetInput = false;
                     render();
@@ -3380,6 +3558,9 @@
         contentPanel.addEventListener('input', (event) => {
             if (event.target.id === 'scriptTextarea') {
                 state.scriptText = event.target.value;
+            }
+            if (event.target.dataset.promptKey) {
+                state.projectSystemPromptDrafts[event.target.dataset.promptKey] = event.target.value;
             }
             if (event.target.id === 'stylePrompt') {
                 state.customStylePrompt = event.target.value;
