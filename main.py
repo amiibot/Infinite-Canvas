@@ -781,6 +781,27 @@ class ComicArtDirectionSave(BaseModel):
     provider_id: str = ""
     aspect_ratio: dict = {}
 
+class ComicProjectPromptConfigSave(BaseModel):
+    system_prompts: dict = {}
+
+PROJECT_SYSTEM_PROMPT_KEYS = (
+    "story_parse",
+    "art_direction_analyze",
+    "sync_character_description",
+    "sync_scene_description",
+    "sync_prop_description",
+    "storyboard_analyze",
+)
+
+DEFAULT_PROJECT_SYSTEM_PROMPTS = {
+    "story_parse": "You are a story analyzer. Extract characters, scenes, and props from the text. Return JSON only.",
+    "art_direction_analyze": "你是专业的电影美术指导和视觉风格顾问。根据剧本内容推荐3种截然不同的视觉风格。\n每种风格包含：name（英文，简洁）、description（中文，1-2句）、reason（中文，≤50字，说明为何适合该剧本）、positive_prompt（英文SD提示词，只描述光影/色调/材质/氛围/艺术媒介，≤50词，禁止描述具体人物/场景/物品）、negative_prompt（英文，≤30词）。\n返回严格JSON：{\"recommendations\": [{\"name\":...,\"description\":...,\"reason\":...,\"positive_prompt\":...,\"negative_prompt\":...}]}\n只返回3个推荐，不多不少。不要包含任何解释性文字。",
+    "sync_character_description": "You are a visual novel character designer. Write concise visual descriptions.",
+    "sync_scene_description": "You are a visual novel background artist. Write concise scene descriptions.",
+    "sync_prop_description": "You are a visual novel prop designer. Write concise prop descriptions.",
+    "storyboard_analyze": "You are a storyboard director. Convert a script into storyboard frames. Return JSON only.",
+}
+
 class AssetDescriptionUpdate(BaseModel):
     description: Optional[str] = None
     prompt: Optional[str] = None
@@ -871,6 +892,31 @@ def _migrate_project_assets(project: dict) -> None:
     for prop in project.get("props", []):
         _migrate_asset_variants(prop, ["image_url"])
         prop.setdefault("locked", False)
+
+def normalize_project_prompt_config(raw) -> dict:
+    raw = raw if isinstance(raw, dict) else {}
+    system_prompts = raw.get("system_prompts") if isinstance(raw.get("system_prompts"), dict) else {}
+    return {
+        "system_prompts": {
+            key: str(system_prompts.get(key) or "")
+            for key in PROJECT_SYSTEM_PROMPT_KEYS
+        }
+    }
+
+
+def get_project_system_prompt(project: dict, key: str) -> str:
+    prompt_config = normalize_project_prompt_config(project.get("prompt_config"))
+    override = prompt_config["system_prompts"].get(key, "").strip()
+    return override or DEFAULT_PROJECT_SYSTEM_PROMPTS[key]
+
+
+def build_project_prompt_config_response(project: dict) -> dict:
+    prompt_config = normalize_project_prompt_config(project.get("prompt_config"))
+    return {
+        "system_prompts": prompt_config["system_prompts"],
+        "default_system_prompts": DEFAULT_PROJECT_SYSTEM_PROMPTS,
+    }
+
 
 def _append_variant(item: dict, url: str, is_uploaded_source: bool = False,
                     variant_key: str = "variants", selected_key: str = "selected_variant_id") -> dict:
@@ -1552,6 +1598,27 @@ def convert_output_to_jpg(url, quality=88):
         print(f"转换 JPG 失败: {e}")
         return url
 
+def data_url_file_part(value, fallback_name="reference.png"):
+    if not isinstance(value, str) or not value.startswith("data:image/") or ";base64," not in value:
+        return None
+    header, encoded = value.split(";base64,", 1)
+    mime = header[5:].split(";", 1)[0] or "image/png"
+    ext = {
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/webp": ".webp",
+        "image/png": ".png",
+    }.get(mime.lower(), ".png")
+    name = os.path.basename(fallback_name or "reference")
+    if not os.path.splitext(name)[1]:
+        name = f"{name}{ext}"
+    try:
+        return (name, BytesIO(base64.b64decode(encoded)), mime)
+    except Exception as e:
+        print(f"data URL reference decode failed: {e}")
+        return None
+
+
 def reference_to_data_url(ref, max_size=None):
     """把本地输出文件转为 data URL（base64）。max_size 限制最长边像素，避免 payload 过大。"""
     path = output_file_from_url(ref.get("url", ""))
@@ -1969,10 +2036,12 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
             if image_refs:
                 body["image_urls"] = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:14]]
             response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
-        elif is_gpt2 and not image_refs and not mask_refs:
+        elif is_gpt2 and not mask_refs:
             body = {"model": model, "prompt": prompt, "size": size}
             if quality:
                 body["quality"] = quality
+            if image_refs:
+                body["image"] = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:16]]
             response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
         elif image_refs:
             # 1) 先用 multipart 提交到 /images/edits（OpenAI / Comfly 风格）
@@ -1981,14 +2050,19 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
             edit_failed_status = None
             edit_failed_text = ""
             try:
-                image_field = "image[]" if is_gpt2 else "image"
+                image_field = "image"
                 for ref in image_refs[:16]:
-                    path = output_file_from_url(ref.get("url", ""))
-                    if not path:
+                    ref_url = ref.get("url", "")
+                    path = output_file_from_url(ref_url)
+                    if path:
+                        fh = open(path, "rb")
+                        opened.append(fh)
+                        files.append((image_field, (os.path.basename(path), fh, content_type_for_path(path))))
                         continue
-                    fh = open(path, "rb")
-                    opened.append(fh)
-                    files.append((image_field, (os.path.basename(path), fh, content_type_for_path(path))))
+                    data_part = data_url_file_part(ref_url, ref.get("name") or "reference.png")
+                    if data_part:
+                        opened.append(data_part[1])
+                        files.append((image_field, data_part))
                 if mask_refs:
                     mask_path = output_file_from_url(mask_refs[0].get("url", ""))
                     if mask_path:
@@ -2001,14 +2075,18 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
                 if not is_gpt2:
                     data["response_format"] = "url"
                 try:
-                    response = await client.post(edit_url, headers=api_headers(json_body=False, provider=provider), data=data, files=files)
-                    if response.status_code >= 400:
-                        edit_failed_status = response.status_code
-                        edit_failed_text = response.text[:500]
-                        response = None
+                    if not files:
+                        edit_failed_status = 0
+                        edit_failed_text = "no local/data-url reference files for multipart edits"
+                    else:
+                        response = await client.post(edit_url, headers=api_headers(json_body=False, provider=provider), data=data, files=files)
+                        if response.status_code >= 400:
+                            edit_failed_status = response.status_code
+                            edit_failed_text = response.text[:500]
+                            response = None
                 except httpx.HTTPError as e:
                     edit_failed_status = -1
-                    edit_failed_text = str(e)
+                    edit_failed_text = f"{type(e).__name__}: {str(e) or repr(e)}"
                     response = None
             finally:
                 for fh in opened:
@@ -2019,9 +2097,11 @@ async def generate_ai_image(prompt, size, quality, model, reference_images=None,
                 image_payload = [reference_to_data_url(ref, max_size=1536) for ref in image_refs[:16]]
                 body = {
                     "model": model, "prompt": prompt, "size": size,
-                    "quality": quality, "response_format": "url", "n": 1,
+                    "quality": quality, "n": 1,
                     "image": image_payload,
                 }
+                if not is_gpt2:
+                    body["response_format"] = "url"
                 response = await client.post(gen_url, headers=api_headers(provider=provider), json=body)
         else:
             response = await client.post(
@@ -4014,6 +4094,7 @@ def get_comic_project_or_404(pid: str):
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     _migrate_project_assets(project)
+    project["prompt_config"] = normalize_project_prompt_config(project.get("prompt_config"))
     return projects, project
 
 def get_comic_frame_or_404(project, fid):
@@ -4109,6 +4190,7 @@ async def create_comic_project(body: ComicProjectCreate):
             "style_negative_prompt": "",
             "style_name": ""
         },
+        "prompt_config": normalize_project_prompt_config(None),
         "frames": []
     }
     def _add(projects):
@@ -4202,12 +4284,13 @@ async def update_asset_description(pid: str, asset_type: str, asset_id: str, bod
 
 @app.post("/api/comic/projects/{pid}/parse")
 async def parse_comic_project(pid: str, body: ComicParseRequest):
+    _, project_snapshot = get_comic_project_or_404(pid)
     # Validate text length before acquiring lock
     text = (body.text or "").strip()
     if len(text) > COMIC_TEXT_MAX_LEN:
         raise HTTPException(status_code=400, detail=f"文本过长，最多 {COMIC_TEXT_MAX_LEN} 字符")
     provider_id = get_primary_provider_id(load_api_providers())
-    system_prompt = "You are a story analyzer. Extract characters, scenes, and props from the text. Return JSON only."
+    system_prompt = get_project_system_prompt(project_snapshot, "story_parse")
     user_prompt = (
         "Extract from this text and return JSON with this exact structure:\n"
         "{\"characters\": [{\"name\": str, \"description\": str, \"age\": str, \"gender\": str, \"clothing\": str}],\n"
@@ -4356,14 +4439,7 @@ async def analyze_comic_art_direction(pid: str):
     script_text = (project.get("original_text") or "").strip()
     if not script_text:
         raise HTTPException(status_code=400, detail="剧本内容为空，请先在 Step1 输入剧本")
-    system_prompt = (
-        "你是专业的电影美术指导和视觉风格顾问。根据剧本内容推荐3种截然不同的视觉风格。\n"
-        "每种风格包含：name（英文，简洁）、description（中文，1-2句）、reason（中文，≤50字，说明为何适合该剧本）、"
-        "positive_prompt（英文SD提示词，只描述光影/色调/材质/氛围/艺术媒介，≤50词，禁止描述具体人物/场景/物品）、"
-        "negative_prompt（英文，≤30词）。\n"
-        "返回严格JSON：{\"recommendations\": [{\"name\":...,\"description\":...,\"reason\":...,\"positive_prompt\":...,\"negative_prompt\":...}]}\n"
-        "只返回3个推荐，不多不少。不要包含任何解释性文字。"
-    )
+    system_prompt = get_project_system_prompt(project, "art_direction_analyze")
     user_prompt = f"剧本内容：\n\n{script_text[:2000]}"
     raw = await call_chat_completion([
         {"role": "system", "content": system_prompt},
@@ -4406,6 +4482,25 @@ async def save_comic_art_direction(pid: str, body: ComicArtDirectionSave):
     atomic_update_comic_projects(_save)
     return result["project"]
 
+@app.get("/api/comic/projects/{pid}/prompt_config")
+async def get_comic_project_prompt_config(pid: str):
+    _, project = get_comic_project_or_404(pid)
+    return build_project_prompt_config_response(project)
+
+@app.post("/api/comic/projects/{pid}/prompt_config")
+async def save_comic_project_prompt_config(pid: str, body: ComicProjectPromptConfigSave):
+    result = {}
+    normalized = normalize_project_prompt_config({"system_prompts": body.system_prompts})
+    def _save(projects):
+        project = next((p for p in projects if p["id"] == pid), None)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        project["prompt_config"] = normalized
+        result["payload"] = build_project_prompt_config_response(project)
+        return projects
+    atomic_update_comic_projects(_save)
+    return result["payload"]
+
 async def _bg_sync_descriptions(task_id: str, pid: str, body):
     try:
         _update_task(task_id, status="running")
@@ -4438,7 +4533,7 @@ async def _bg_sync_descriptions(task_id: str, pid: str, body):
             try:
                 res = await call_chat_completion(
                     messages=[
-                        {"role": "system", "content": "You are a visual novel character designer. Write concise visual descriptions."},
+                        {"role": "system", "content": get_project_system_prompt(project_snapshot, "sync_character_description")},
                         {"role": "user", "content": (
                             f"Character name: {name}\n"
                             f"Age: {age}, Gender: {gender}, Clothing: {clothing}\n"
@@ -4461,7 +4556,7 @@ async def _bg_sync_descriptions(task_id: str, pid: str, body):
             try:
                 res = await call_chat_completion(
                     messages=[
-                        {"role": "system", "content": "You are a visual novel background artist. Write concise scene descriptions."},
+                        {"role": "system", "content": get_project_system_prompt(project_snapshot, "sync_scene_description")},
                         {"role": "user", "content": (
                             f"Scene name: {name}\n"
                             f"Story context: {original_text}\n\n"
@@ -4483,7 +4578,7 @@ async def _bg_sync_descriptions(task_id: str, pid: str, body):
             try:
                 res = await call_chat_completion(
                     messages=[
-                        {"role": "system", "content": "You are a visual novel prop designer. Write concise prop descriptions."},
+                        {"role": "system", "content": get_project_system_prompt(project_snapshot, "sync_prop_description")},
                         {"role": "user", "content": (
                             f"Prop name: {name}\n"
                             f"Story context: {original_text}\n\n"
@@ -4801,7 +4896,11 @@ async def _bg_regenerate_asset(task_id: str, pid: str, body):
     except asyncio.CancelledError:
         _update_task(task_id, status="cancelled")
     except Exception as e:
-        _update_task(task_id, status="failed", error=str(e))
+        if isinstance(e, HTTPException):
+            error_detail = e.detail
+        else:
+            error_detail = str(e) or repr(e)
+        _update_task(task_id, status="failed", error=error_detail)
 
 @app.post("/api/comic/projects/{pid}/regenerate_asset")
 async def regenerate_comic_asset(pid: str, body: ComicAssetRegenRequest):
@@ -5153,10 +5252,7 @@ async def analyze_storyboard(pid: str):
             "Only include entities that are VISIBLE in that frame."
         )
 
-    system_prompt = (
-        "You are a storyboard director. Convert a script into storyboard frames. Return JSON only."
-        + entities_block
-    )
+    system_prompt = get_project_system_prompt(project_snapshot, "storyboard_analyze") + entities_block
     user_prompt = (
         "Convert this script into storyboard frames. Return a JSON array with this exact structure:\n"
         '[{"action_description": str, "dialogue": str, "camera_movement": str, "image_prompt": str, '

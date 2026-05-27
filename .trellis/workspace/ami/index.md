@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 14
-- **Last Active**: 2026-05-20
+- **Total Sessions**: 15
+- **Last Active**: 2026-05-26
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~475 | Active |
+| `journal-1.md` | ~509 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 15 | 2026-05-26 | 角色工坊参考图反向生成收尾 | `545131d`, `3f7f2bf` | `fix/gpt-image-2-reference-edits` |
 | 14 | 2026-05-20 | UI 可访问性修复 P1+P2（#10-#19,#24） | `57ca525` | `feat/remove-step5-step6` |
 | 13 | 2026-05-20 | UI合规修复 P0+P1（#1-#9） | `0346ff1` | `feat/remove-step5-step6` |
 | 12 | 2026-05-20 | Step4 多参考图分镜生成 | `fee4bae` | `feat/remove-step5-step6` |
